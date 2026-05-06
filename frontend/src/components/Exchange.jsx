@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const PIN_CODE = import.meta.env.VITE_PIN_CODE;
 
-function Exchange({ setMessage }) {
+function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -12,8 +12,27 @@ function Exchange({ setMessage }) {
   const [remarks, setRemarks] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Handle queue customer selection
+  useEffect(() => {
+    if (queueCustomer) {
+      setSelectedCustomer({ name: queueCustomer.name });
+      setSearchTerm(queueCustomer.name);
+      setEmptyCylinder(queueCustomer.emptyCylinder);
+      setMessage(`✅ क्यूबाट: ${queueCustomer.name} - खाली सिलिन्डर: ${queueCustomer.emptyCylinder}`);
+      setTimeout(() => setMessage(''), 3000);
+    }
+  }, [queueCustomer]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm.length >= 2) {
+        searchCustomer();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const searchCustomer = async () => {
-    if (searchTerm.length < 2) return;
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/customers?search=${encodeURIComponent(searchTerm)}`, {
@@ -25,17 +44,9 @@ function Exchange({ setMessage }) {
       }
     } catch (error) {
       console.error('Search error:', error);
-      setMessage('❌ इन्टरनेट जडान जाँच गर्नुहोस्');
     }
     setLoading(false);
   };
-
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchTerm.length >= 2) searchCustomer();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   const selectCustomer = (customer) => {
     setSelectedCustomer(customer);
@@ -62,13 +73,25 @@ function Exchange({ setMessage }) {
           customerName: selectedCustomer.name,
           emptyCylinder,
           filledCylinder,
-          remarks
+          remarks,
+          queueId: queueCustomer?.queueId || null  // Pass queue ID if from queue
         })
       });
       const data = await res.json();
       if (data.success) {
         setMessage('✅ लेनदेन सफलतापूर्वक रेकर्ड गरियो');
         setRemarks('');
+        
+        // Clear queue customer after successful transaction
+        if (queueCustomer && onClearQueueCustomer) {
+          onClearQueueCustomer();
+        }
+        
+        // Reset form if not from queue
+        if (!queueCustomer) {
+          setSelectedCustomer(null);
+          setSearchTerm('');
+        }
       } else {
         setMessage('❌ ' + data.message);
       }
@@ -86,7 +109,15 @@ function Exchange({ setMessage }) {
         📝 सिलिन्डर लेनदेन
       </h2>
 
-      {selectedCustomer && (
+      {queueCustomer && (
+        <div className="bg-green-50 p-3 rounded-xl mb-4 border-l-4 border-green-500">
+          <div className="text-sm text-green-600">✅ क्यूबाट चयन गरियो / From Queue</div>
+          <div className="font-bold text-lg">{queueCustomer.name}</div>
+          <div className="text-sm">खाली सिलिन्डर: {queueCustomer.emptyCylinder}</div>
+        </div>
+      )}
+
+      {selectedCustomer && !queueCustomer && (
         <div className="bg-blue-50 p-3 rounded-xl mb-4 border-l-4 border-blue-500">
           <div className="text-sm text-blue-600">✅ चयन गरिएको ग्राहक</div>
           <div className="font-bold text-lg">{selectedCustomer.name}</div>
@@ -101,15 +132,16 @@ function Exchange({ setMessage }) {
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="नाम लेख्नुहोस्..."
           className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg"
+          disabled={queueCustomer ? true : false}
         />
-        {loading && <div className="text-center py-2">⏳ खोज्दै...</div>}
-        {searchResults.length > 0 && (
+        {loading && <div className="text-center py-2 text-gray-500">⏳ खोज्दै...</div>}
+        {!queueCustomer && searchResults.length > 0 && (
           <div className="mt-3 max-h-60 overflow-y-auto">
             {searchResults.map(customer => (
               <div
                 key={customer.id}
                 onClick={() => selectCustomer(customer)}
-                className="bg-gray-100 p-3 rounded-xl mb-2 cursor-pointer"
+                className="bg-gray-100 p-3 rounded-xl mb-2 cursor-pointer active:bg-gray-200"
               >
                 <div className="font-bold text-lg">{customer.name}</div>
                 <div className="text-sm text-gray-600">📞 {customer.phone || 'नम्बर छैन'}</div>

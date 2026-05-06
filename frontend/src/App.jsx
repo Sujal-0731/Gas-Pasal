@@ -3,8 +3,9 @@ import Exchange from './components/Exchange';
 import NewCustomer from './components/NewCustomer';
 import CustomerHistory from './components/CustomerHistory';
 import DealerRefill from './components/DealerRefill';
-import RefillHistory from './components/RefillHistory';  
+import RefillHistory from './components/RefillHistory';
 import StockSummary from './components/StockSummary';
+import Queue from './components/Queue';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -12,6 +13,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('exchange');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [queueCustomer, setQueueCustomer] = useState(null);
 
   useEffect(() => {
     const savedAuth = localStorage.getItem('sujalAuth');
@@ -32,7 +34,21 @@ function App() {
     }
   };
 
-  // PIN Screen
+  const handleSelectFromQueue = (queueItem) => {
+    setQueueCustomer({
+      name: queueItem.customer_name,
+      emptyCylinder: queueItem.empty_cylinder,
+      queueId: queueItem.id
+    });
+    setActiveTab('exchange');
+    setMessage(`✅ ${queueItem.customer_name} क्यूबाट चयन गरियो`);
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleClearQueueCustomer = () => {
+    setQueueCustomer(null);
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -53,26 +69,26 @@ function App() {
               <button
                 key={num}
                 onClick={() => pin.length < 4 && setPin(prev => prev + num)}
-                className="bg-gray-200 hover:bg-gray-300 text-2xl font-bold py-4 rounded-xl transition active:scale-95"
+                className="bg-gray-200 hover:bg-gray-300 text-2xl font-bold py-4 rounded-xl"
               >
                 {num}
               </button>
             ))}
             <button
               onClick={() => setPin(prev => prev.slice(0, -1))}
-              className="bg-gray-200 hover:bg-gray-300 text-xl font-bold py-4 rounded-xl transition active:scale-95"
+              className="bg-gray-200 hover:bg-gray-300 text-xl font-bold py-4 rounded-xl"
             >
               ⌫
             </button>
             <button
               onClick={() => pin.length < 4 && setPin(prev => prev + '0')}
-              className="bg-gray-200 hover:bg-gray-300 text-2xl font-bold py-4 rounded-xl transition active:scale-95"
+              className="bg-gray-200 hover:bg-gray-300 text-2xl font-bold py-4 rounded-xl"
             >
               0
             </button>
             <button
               onClick={handlePinSubmit}
-              className="bg-blue-900 hover:bg-blue-800 text-white text-xl font-bold py-4 rounded-xl transition active:scale-95"
+              className="bg-blue-900 hover:bg-blue-800 text-white text-xl font-bold py-4 rounded-xl"
             >
               ✅
             </button>
@@ -84,7 +100,16 @@ function App() {
     );
   }
 
-  // Main App - 6 Tabs (Added Refill History)
+  const tabs = [
+    { id: 'exchange', label: '💰 लेनदेन' },
+    { id: 'newcustomer', label: '🆕 नयाँ ग्राहक' },
+    { id: 'history', label: '📜 ग्राहक इतिहास' },
+    { id: 'queue', label: '📋 पर्खने सूची' },
+    { id: 'dealer', label: '🚚 डिलर रिफिल' },
+    { id: 'refillhistory', label: '📋 रिफिल इतिहास' },
+    { id: 'stock', label: '📦 स्टक' }
+  ];
+
   return (
     <div className="max-w-lg mx-auto p-4 pb-24">
       <div className="bg-blue-900 text-white rounded-2xl p-5 mb-5 text-center shadow-lg">
@@ -99,20 +124,13 @@ function App() {
       )}
 
       <div className="flex gap-2 mb-5 overflow-x-auto pb-2">
-        {[
-          { id: 'exchange', label: '💰 लेनदेन' },
-          { id: 'newcustomer', label: '🆕 नयाँ ग्राहक' },
-          { id: 'history', label: '📜 ग्राहक इतिहास' },
-          { id: 'dealer', label: '🚚 डिलर रिफिल' },
-          { id: 'refillhistory', label: '📋 रिफिल इतिहास' },  // ← NEW TAB
-          { id: 'stock', label: '📦 स्टक' }
-        ].map(tab => (
+        {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-5 py-3 rounded-full font-semibold whitespace-nowrap transition active:scale-95 ${
+            className={`px-4 py-2 rounded-full font-semibold whitespace-nowrap ${
               activeTab === tab.id
-                ? 'bg-blue-900 text-white shadow-md'
+                ? 'bg-blue-900 text-white'
                 : 'bg-white text-gray-700 border border-gray-300'
             }`}
           >
@@ -122,11 +140,18 @@ function App() {
       </div>
 
       <div className="mt-4">
-        {activeTab === 'exchange' && <Exchange setMessage={setMessage} />}
+        {activeTab === 'exchange' && (
+          <Exchange 
+            setMessage={setMessage} 
+            queueCustomer={queueCustomer}
+            onClearQueueCustomer={handleClearQueueCustomer}
+          />
+        )}
         {activeTab === 'newcustomer' && <NewCustomer setMessage={setMessage} />}
         {activeTab === 'history' && <CustomerHistory />}
+        {activeTab === 'queue' && <Queue setMessage={setMessage} onSelectCustomerFromQueue={handleSelectFromQueue} />}
         {activeTab === 'dealer' && <DealerRefill setMessage={setMessage} />}
-        {activeTab === 'refillhistory' && <RefillHistory />}  
+        {activeTab === 'refillhistory' && <RefillHistory />}
         {activeTab === 'stock' && <StockSummary />}
       </div>
 
@@ -135,7 +160,7 @@ function App() {
           localStorage.removeItem('sujalAuth');
           window.location.reload();
         }}
-        className="w-full bg-red-600 text-white py-3 rounded-full font-semibold mt-4 active:bg-red-700 transition"
+        className="w-full bg-red-600 text-white py-3 rounded-full font-semibold mt-4"
       >
         🚪 लगआउट / Logout
       </button>

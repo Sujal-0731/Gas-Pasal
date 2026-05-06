@@ -85,7 +85,7 @@ app.post('/api/customers', verifyPin, async (req, res) => {
 // Add transaction AND update stock
 app.post('/api/transactions', verifyPin, async (req, res) => {
   try {
-    const { customerName, emptyCylinder, filledCylinder, remarks } = req.body;
+    const { customerName, emptyCylinder, filledCylinder, remarks, queueId } = req.body;
     
     if (!customerName || customerName.trim() === '') {
       return res.status(400).json({ success: false, message: 'Customer name is required' });
@@ -162,7 +162,19 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
       }
     }
     
+    // ========== REMOVE FROM QUEUE IF FROM QUEUE ==========
+    if (queueId) {
+      await supabase
+        .from('queue')
+        .update({
+          status: 'completed',
+          completed_at: new Date()
+        })
+        .eq('id', queueId);
+    }
+    
     res.json({ success: true, message: 'Transaction recorded successfully', data });
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -290,6 +302,82 @@ app.post('/api/refills', verifyPin, async (req, res) => {
     }
     
     res.json({ success: true, message: 'Dealer refill recorded successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+// ========== QUEUE ROUTES ==========
+
+app.get('/api/queue', verifyPin, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('queue')
+      .select('*')
+      .eq('status', 'waiting')
+      .order('queued_at', { ascending: true });
+    
+    if (error) throw error;
+    res.json({ success: true, queue: data || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/queue', verifyPin, async (req, res) => {
+  try {
+    const { customerId, customerName, emptyCylinder, notes } = req.body;
+    
+    const { data, error } = await supabase
+      .from('queue')
+      .insert([{
+        customer_id: customerId,
+        customer_name: customerName,
+        empty_cylinder: emptyCylinder,
+        notes: notes || null,
+        status: 'waiting',
+        queued_at: new Date()
+      }])
+      .select();
+    
+    if (error) throw error;
+    
+    // Increase empty stock
+    const { data: stockData } = await supabase
+      .from('stock')
+      .select('empty_count')
+      .eq('cylinder_type', emptyCylinder)
+      .single();
+    
+    if (stockData) {
+      await supabase
+        .from('stock')
+        .update({
+          empty_count: (stockData.empty_count || 0) + 1,
+          updated_at: new Date()
+        })
+        .eq('cylinder_type', emptyCylinder);
+    }
+    
+    res.json({ success: true, message: 'Added to queue', data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/queue/:id', verifyPin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const { error } = await supabase
+      .from('queue')
+      .update({
+        status: 'completed',
+        completed_at: new Date()
+      })
+      .eq('id', id);
+    
+    if (error) throw error;
+    res.json({ success: true, message: 'Removed from queue' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
