@@ -27,6 +27,8 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'API is running' });
 });
 
+// ========== CUSTOMER ROUTES ==========
+
 // Get all customers
 app.get('/api/customers', verifyPin, async (req, res) => {
   try {
@@ -71,7 +73,13 @@ app.post('/api/customers', verifyPin, async (req, res) => {
     
     const { data, error } = await supabase
       .from('customers')
-      .insert([{ customer_id: customerId, name: name.trim(), phone: phone || null, address: address || null, remarks: remarks || null }])
+      .insert([{ 
+        customer_id: customerId, 
+        name: name.trim(), 
+        phone: phone || null, 
+        address: address || null, 
+        remarks: remarks || null 
+      }])
       .select()
       .single();
     
@@ -81,6 +89,8 @@ app.post('/api/customers', verifyPin, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// ========== TRANSACTION ROUTES ==========
 
 // Add transaction AND update stock
 app.post('/api/transactions', verifyPin, async (req, res) => {
@@ -111,6 +121,31 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
     }
     const transactionId = 'TR' + String(nextNum).padStart(5, '0');
     
+    // Determine source and get queue date if from queue
+    let source = 'direct';
+    let queueDate = null;
+    
+    if (queueId) {
+      source = 'queue';
+      // Get the original queued date
+      const { data: queueData } = await supabase
+        .from('queue')
+        .select('queued_at')
+        .eq('id', queueId)
+        .single();
+      
+      queueDate = queueData?.queued_at;
+      
+      // Mark queue as completed
+      await supabase
+        .from('queue')
+        .update({
+          status: 'completed',
+          completed_at: new Date()
+        })
+        .eq('id', queueId);
+    }
+    
     // Insert transaction
     const { data, error } = await supabase
       .from('transactions')
@@ -120,7 +155,9 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
         customer_name: customerName.trim(),
         empty_cylinder: emptyCylinder,
         filled_cylinder: filledCylinder,
-        remarks: remarks || null
+        remarks: remarks || null,
+        source: source,
+        queue_date: queueDate
       }])
       .select()
       .single();
@@ -162,17 +199,6 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
       }
     }
     
-    // ========== REMOVE FROM QUEUE IF FROM QUEUE ==========
-    if (queueId) {
-      await supabase
-        .from('queue')
-        .update({
-          status: 'completed',
-          completed_at: new Date()
-        })
-        .eq('id', queueId);
-    }
-    
     res.json({ success: true, message: 'Transaction recorded successfully', data });
 
   } catch (error) {
@@ -205,7 +231,9 @@ app.get('/api/customers/:name/history', verifyPin, async (req, res) => {
     const formattedTransactions = (transactions || []).map(t => ({
       ...t,
       date: new Date(t.created_at).toLocaleDateString('ne-NP'),
-      time: new Date(t.created_at).toLocaleTimeString('ne-NP', { hour: '2-digit', minute: '2-digit' })
+      time: new Date(t.created_at).toLocaleTimeString('ne-NP', { hour: '2-digit', minute: '2-digit' }),
+      queue_date_formatted: t.queue_date ? new Date(t.queue_date).toLocaleDateString('ne-NP') : null,
+      queue_time_formatted: t.queue_date ? new Date(t.queue_date).toLocaleTimeString('ne-NP', { hour: '2-digit', minute: '2-digit' }) : null
     }));
     
     res.json({ success: true, customer, transactions: formattedTransactions, totalExchanges: formattedTransactions.length });
@@ -213,6 +241,8 @@ app.get('/api/customers/:name/history', verifyPin, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// ========== STOCK ROUTES ==========
 
 // Get stock
 app.get('/api/stock', verifyPin, async (req, res) => {
@@ -229,7 +259,9 @@ app.get('/api/stock', verifyPin, async (req, res) => {
   }
 });
 
-// Add dealer refill - CORRECTED LOGIC
+// ========== DEALER REFILL ROUTES ==========
+
+// Add dealer refill
 app.post('/api/refills', verifyPin, async (req, res) => {
   try {
     const { 
@@ -240,7 +272,7 @@ app.post('/api/refills', verifyPin, async (req, res) => {
       notes 
     } = req.body;
     
-    // Insert refill record (store the changes as entered by user)
+    // Insert refill record
     const { error } = await supabase.from('dealer_refills').insert([{
       refill_date: refillDate,
       lokpriya_filled: lokpriyaFilled || 0,
@@ -255,9 +287,6 @@ app.post('/api/refills', verifyPin, async (req, res) => {
     if (error) throw error;
     
     // Update stock based on refill
-    // Filled: Dealer GIVES filled cylinders -> INCREASE filled stock (+)
-    // Empty: Dealer TAKES empty cylinders -> DECREASE empty stock (-)
-    
     const cylinders = [
       { name: 'लोकप्रिय', filled: lokpriyaFilled || 0, empty: lokpriyaEmpty || 0 },
       { name: 'सुगम', filled: sugamFilled || 0, empty: sugamEmpty || 0 },
@@ -265,7 +294,6 @@ app.post('/api/refills', verifyPin, async (req, res) => {
     ];
     
     for (const cyl of cylinders) {
-      // Update filled stock (INCREASE by positive number, DECREASE by negative number)
       if (cyl.filled !== 0) {
         const { data: current } = await supabase
           .from('stock')
@@ -282,7 +310,6 @@ app.post('/api/refills', verifyPin, async (req, res) => {
         }
       }
       
-      // Update empty stock (DECREASE by positive number, INCREASE by negative number)
       if (cyl.empty !== 0) {
         const { data: current } = await supabase
           .from('stock')
@@ -291,7 +318,6 @@ app.post('/api/refills', verifyPin, async (req, res) => {
           .single();
         
         if (current) {
-          // Empty stock DECREASES when dealer takes empties
           const newEmptyCount = Math.max(0, (current.empty_count || 0) - cyl.empty);
           await supabase
             .from('stock')
@@ -306,8 +332,21 @@ app.post('/api/refills', verifyPin, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// Get dealer refills
+app.get('/api/refills', verifyPin, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('dealer_refills').select('*').order('refill_date', { ascending: false });
+    if (error) throw error;
+    res.json({ success: true, refills: data || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ========== QUEUE ROUTES ==========
 
+// Get waiting queue
 app.get('/api/queue', verifyPin, async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -323,6 +362,7 @@ app.get('/api/queue', verifyPin, async (req, res) => {
   }
 });
 
+// Add to queue
 app.post('/api/queue', verifyPin, async (req, res) => {
   try {
     const { customerId, customerName, emptyCylinder, notes } = req.body;
@@ -364,6 +404,7 @@ app.post('/api/queue', verifyPin, async (req, res) => {
   }
 });
 
+// Remove from queue (mark completed)
 app.delete('/api/queue/:id', verifyPin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -378,17 +419,6 @@ app.delete('/api/queue/:id', verifyPin, async (req, res) => {
     
     if (error) throw error;
     res.json({ success: true, message: 'Removed from queue' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Get dealer refills
-app.get('/api/refills', verifyPin, async (req, res) => {
-  try {
-    const { data, error } = await supabase.from('dealer_refills').select('*').order('refill_date', { ascending: false });
-    if (error) throw error;
-    res.json({ success: true, refills: data || [] });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

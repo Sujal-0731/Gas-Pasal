@@ -117,7 +117,6 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Calculate waiting time
   const getWaitingTime = (queuedAt) => {
     const queued = new Date(queuedAt);
     const now = new Date();
@@ -147,7 +146,6 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
         </button>
       </div>
 
-      {/* Queue List */}
       {loading ? (
         <div className="text-center py-8 text-gray-500">⏳ लोड हुँदै...</div>
       ) : queue.length === 0 ? (
