@@ -228,15 +228,36 @@ app.get('/api/customers/:name/history', verifyPin, async (req, res) => {
     
     if (transError) throw transError;
     
-    const formattedTransactions = (transactions || []).map(t => ({
-      ...t,
-      date: new Date(t.created_at).toLocaleDateString('ne-NP'),
-      time: new Date(t.created_at).toLocaleTimeString('ne-NP', { hour: '2-digit', minute: '2-digit' }),
-      queue_date_formatted: t.queue_date ? new Date(t.queue_date).toLocaleDateString('ne-NP') : null,
-      queue_time_formatted: t.queue_date ? new Date(t.queue_date).toLocaleTimeString('ne-NP', { hour: '2-digit', minute: '2-digit' }) : null
-    }));
+    const formattedTransactions = (transactions || []).map(t => {
+      // Format transaction date
+      const transDate = new Date(t.created_at);
+      const formattedTransDate = transDate.toLocaleDateString('ne-NP');
+      const formattedTransTime = transDate.toLocaleTimeString('ne-NP', { hour: '2-digit', minute: '2-digit' });
+      
+      // Format queue date if exists
+      let queueDateFormatted = null;
+      let queueTimeFormatted = null;
+      if (t.queue_date) {
+        const queueDate = new Date(t.queue_date);
+        queueDateFormatted = queueDate.toLocaleDateString('ne-NP');
+        queueTimeFormatted = queueDate.toLocaleTimeString('ne-NP', { hour: '2-digit', minute: '2-digit' });
+      }
+      
+      return {
+        ...t,
+        date: formattedTransDate,
+        time: formattedTransTime,
+        queue_date_formatted: queueDateFormatted,
+        queue_time_formatted: queueTimeFormatted
+      };
+    });
     
-    res.json({ success: true, customer, transactions: formattedTransactions, totalExchanges: formattedTransactions.length });
+    res.json({ 
+      success: true, 
+      customer, 
+      transactions: formattedTransactions, 
+      totalExchanges: formattedTransactions.length 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

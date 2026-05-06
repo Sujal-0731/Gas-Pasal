@@ -94,7 +94,7 @@ function CustomerHistory() {
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {history?.transactions?.map((t, idx) => (
               <div key={idx} className="bg-gray-100 p-3 rounded-xl border-l-4 border-orange-500">
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-start flex-wrap gap-2">
                   <div className="font-bold">📅 {t.date} | ⏰ {t.time}</div>
                   {t.source === 'queue' && (
                     <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
@@ -105,7 +105,7 @@ function CustomerHistory() {
                 
                 {/* Show queue date if from queue */}
                 {t.source === 'queue' && t.queue_date_formatted && (
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-blue-600 mt-1">
                     📌 क्यूमा थपिएको: {t.queue_date_formatted} {t.queue_time_formatted ? `| ⏰ ${t.queue_time_formatted}` : ''}
                   </div>
                 )}
