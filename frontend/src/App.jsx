@@ -54,7 +54,7 @@ function App() {
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-xl">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-blue-900">🏪 सुजल स्टोर</h1>
+            <h1 className="text-3xl font-bold text-blue-900">Anam Store</h1>
             <p className="text-gray-600 mt-2">कृपया PIN प्रविष्ट गर्नुहोस्</p>
           </div>
           
@@ -113,7 +113,7 @@ function App() {
   return (
     <div className="max-w-lg mx-auto p-4 pb-24">
       <div className="bg-blue-900 text-white rounded-2xl p-5 mb-5 text-center shadow-lg">
-        <h1 className="text-2xl font-bold">🏪 सुजल स्टोर</h1>
+        <h1 className="text-2xl font-bold">Anam Store</h1>
         <p className="text-sm opacity-90">लोकप्रिय · सुगम · एभरेस्ट</p>
       </div>
 
