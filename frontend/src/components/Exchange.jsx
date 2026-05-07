@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 const API_URL = import.meta.env.VITE_API_URL;
 const PIN_CODE = import.meta.env.VITE_PIN_CODE;
 
-function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
+function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -17,10 +17,9 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
       setSelectedCustomer({ name: queueCustomer.name });
       setSearchTerm(queueCustomer.name);
       setEmptyCylinder(queueCustomer.emptyCylinder);
-      setMessage(`✅ क्यूबाट: ${queueCustomer.name} - खाली सिलिन्डर: ${queueCustomer.emptyCylinder}`);
-      setTimeout(() => setMessage(''), 3000);
+      showToast(`क्यूबाट: ${queueCustomer.name} - खाली सिलिन्डर: ${queueCustomer.emptyCylinder}`, 'success');
     }
-  }, [queueCustomer]);
+  }, [queueCustomer, showToast]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -43,6 +42,7 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
       }
     } catch (error) {
       console.error('Search error:', error);
+      showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
     }
     setLoading(false);
   };
@@ -55,8 +55,7 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
 
   const recordTransaction = async () => {
     if (!selectedCustomer) {
-      setMessage('❌ कृपया पहिले ग्राहक खोज्नुहोस्');
-      setTimeout(() => setMessage(''), 3000);
+      showToast('कृपया पहिले ग्राहक खोज्नुहोस्', 'error');
       return;
     }
 
@@ -78,7 +77,7 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
       });
       const data = await res.json();
       if (data.success) {
-        setMessage('✅ लेनदेन सफलतापूर्वक रेकर्ड गरियो');
+        showToast('लेनदेन सफलतापूर्वक रेकर्ड गरियो', 'success');
         setRemarks('');
         
         if (queueCustomer && onClearQueueCustomer) {
@@ -88,14 +87,14 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
         if (!queueCustomer) {
           setSelectedCustomer(null);
           setSearchTerm('');
+          setSearchResults([]);
         }
       } else {
-        setMessage('❌ ' + data.message);
+        showToast(`${data.message}`, 'error');
       }
-      setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      setMessage('❌ इन्टरनेट जडान जाँच गर्नुहोस्');
-      setTimeout(() => setMessage(''), 3000);
+      console.error('Transaction error:', error);
+      showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
     }
     setLoading(false);
   };
@@ -129,7 +128,7 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="नाम लेख्नुहोस्..."
           className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg"
-          disabled={queueCustomer ? true : false}
+          disabled={!!queueCustomer}
         />
         {loading && <div className="text-center py-2 text-gray-500">⏳ खोज्दै...</div>}
         {!queueCustomer && searchResults.length > 0 && (
@@ -161,6 +160,7 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
           <option>अन्य / Other</option>
           <option>कोही छैन</option>
         </select>
+        <p className="text-xs text-gray-500 mt-1">💡 "कोही छैन" → नयाँ सिलिन्डर खरिद (खाली ल्याएन)</p>
       </div>
 
       <div className="mb-4">
@@ -176,6 +176,7 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
           <option>अन्य / Other</option>
           <option>कोही छैन</option>
         </select>
+        <p className="text-xs text-gray-500 mt-1">💡 "कोही छैन" → खाली सिलिन्डर मात्र फिर्ता (भरिएको लिएन)</p>
       </div>
 
       <div className="mb-4">
@@ -184,7 +185,7 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
           rows="2"
-          placeholder=""
+          placeholder="जस्तै: रु.५०० बाँकी"
           className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg"
         />
       </div>
@@ -192,9 +193,9 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
       <button
         onClick={recordTransaction}
         disabled={loading}
-        className="w-full bg-blue-900 text-white py-4 rounded-full font-bold text-lg"
+        className="w-full bg-blue-900 text-white py-4 rounded-full font-bold text-lg hover:bg-blue-800 transition disabled:opacity-50"
       >
-        💾 लेनदेन रेकर्ड गर्नुहोस्
+        {loading ? 'सेभ गर्दै...' : '💾 लेनदेन रेकर्ड गर्नुहोस्'}
       </button>
     </div>
   );

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 const API_URL = import.meta.env.VITE_API_URL;
 const PIN_CODE = import.meta.env.VITE_PIN_CODE;
 
-function NewCustomer({ setMessage }) {
+function NewCustomer({ showToast }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -12,8 +12,7 @@ function NewCustomer({ setMessage }) {
 
   const registerCustomer = async () => {
     if (!name.trim()) {
-      setMessage('❌ कृपया ग्राहकको नाम लेख्नुहोस्');
-      setTimeout(() => setMessage(''), 3000);
+      showToast('कृपया ग्राहकको नाम लेख्नुहोस्', 'error');
       return;
     }
 
@@ -29,19 +28,16 @@ function NewCustomer({ setMessage }) {
       });
       const data = await res.json();
       if (data.success) {
-        setMessage('✅ ग्राहक दर्ता सफल भयो');
+        showToast('ग्राहक दर्ता सफल भयो', 'success');
         setName('');
         setPhone('');
         setAddress('');
         setRemarks('');
-        setTimeout(() => setMessage(''), 3000);
       } else {
-        setMessage('❌ ' + data.message);
-        setTimeout(() => setMessage(''), 3000);
+        showToast(`${data.message}`, 'error');
       }
     } catch (error) {
-      setMessage('❌ इन्टरनेट जडान जाँच गर्नुहोस्');
-      setTimeout(() => setMessage(''), 3000);
+      showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
     }
     setLoading(false);
   };
@@ -58,8 +54,8 @@ function NewCustomer({ setMessage }) {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder=""
-          className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 outline-none"
+          placeholder="रामेश गुप्ता"
+          className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 focus:outline-none"
         />
       </div>
 
@@ -69,8 +65,8 @@ function NewCustomer({ setMessage }) {
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder=""
-          className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 outline-none"
+          placeholder="९८७६५४३२१०"
+          className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 focus:outline-none"
         />
       </div>
 
@@ -80,8 +76,8 @@ function NewCustomer({ setMessage }) {
           type="text"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder=""
-          className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 outline-none"
+          placeholder="गान्धी नगर"
+          className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 focus:outline-none"
         />
       </div>
 
@@ -91,17 +87,17 @@ function NewCustomer({ setMessage }) {
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
           rows="2"
-          placeholder=""
-          className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 outline-none"
+          placeholder="जम्मा रु.२०० बाँकी"
+          className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 focus:outline-none"
         />
       </div>
 
       <button
         onClick={registerCustomer}
         disabled={loading}
-        className="w-full bg-blue-900 text-white py-4 rounded-full font-bold text-lg active:bg-orange-500 transition disabled:opacity-50"
+        className="w-full bg-blue-900 text-white py-4 rounded-full font-bold text-lg hover:bg-blue-800 transition disabled:opacity-50"
       >
-        ✅ ग्राहक दर्ता गर्नुहोस्
+        {loading ? 'दर्ता गर्दै...' : '✅ ग्राहक दर्ता गर्नुहोस्'}
       </button>
     </div>
   );

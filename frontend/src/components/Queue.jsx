@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 const API_URL = import.meta.env.VITE_API_URL;
 const PIN_CODE = import.meta.env.VITE_PIN_CODE;
 
-function Queue({ setMessage, onSelectCustomerFromQueue }) {
+function Queue({ showToast, onSelectCustomerFromQueue }) {
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -30,6 +30,7 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
       }
     } catch (error) {
       console.error('Error loading queue:', error);
+      showToast('क्यू लोड गर्न असफल', 'error');
     }
     setLoading(false);
   };
@@ -50,8 +51,7 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
 
   const addToQueue = async () => {
     if (!selectedCustomer) {
-      setMessage('❌ कृपया ग्राहक चयन गर्नुहोस्');
-      setTimeout(() => setMessage(''), 3000);
+      showToast('कृपया ग्राहक चयन गर्नुहोस्', 'error');
       return;
     }
 
@@ -72,19 +72,19 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
       });
       const data = await res.json();
       if (data.success) {
-        setMessage('✅ ग्राहक क्यूमा थपियो');
+        showToast('ग्राहक क्यूमा थपियो', 'success');
         setShowAddModal(false);
         setSelectedCustomer(null);
         setEmptyCylinder('लोकप्रिय');
         setNotes('');
+        setSearchTerm('');
         loadQueue();
       } else {
-        setMessage('❌ ' + data.message);
+        showToast(`${data.message}`, 'error');
       }
-      setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      setMessage('❌ इन्टरनेट जडान जाँच गर्नुहोस्');
-      setTimeout(() => setMessage(''), 3000);
+      console.error('Add to queue error:', error);
+      showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
     }
     setLoading(false);
   };
@@ -99,15 +99,14 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
         });
         const data = await res.json();
         if (data.success) {
-          setMessage(`✅ ${customerName} क्यूबाट हटाइयो`);
+          showToast(`${customerName} क्यूबाट हटाइयो`, 'success');
           loadQueue();
         } else {
-          setMessage('❌ ' + data.message);
+          showToast(`${data.message}`, 'error');
         }
-        setTimeout(() => setMessage(''), 3000);
       } catch (error) {
-        setMessage('❌ इन्टरनेट जडान जाँच गर्नुहोस्');
-        setTimeout(() => setMessage(''), 3000);
+        console.error('Remove from queue error:', error);
+        showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
       }
       setLoading(false);
     }
@@ -140,7 +139,7 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
         </h2>
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold"
+          className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-green-700 transition"
         >
           + नयाँ
         </button>
@@ -177,13 +176,13 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => onSelectCustomerFromQueue(item)}
-                    className="bg-blue-900 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                    className="bg-blue-900 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-blue-800 transition"
                   >
                     लेनदेन
                   </button>
                   <button
                     onClick={() => removeFromQueue(item.id, item.customer_name)}
-                    className="bg-red-500 text-white px-4 py-2 rounded-full text-sm"
+                    className="bg-red-500 text-white px-4 py-2 rounded-full text-sm hover:bg-red-600 transition"
                   >
                     हटाउनुहोस्
                   </button>
@@ -207,7 +206,7 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="नाम लेख्नुहोस्..."
-                className="w-full p-3 border rounded-xl"
+                className="w-full p-3 border rounded-xl focus:border-blue-500 focus:outline-none"
               />
             </div>
 
@@ -216,10 +215,10 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
                 <div
                   key={customer.id}
                   onClick={() => setSelectedCustomer(customer)}
-                  className={`p-3 rounded-xl mb-2 cursor-pointer ${
+                  className={`p-3 rounded-xl mb-2 cursor-pointer transition ${
                     selectedCustomer?.id === customer.id
                       ? 'bg-blue-100 border-blue-500 border'
-                      : 'bg-gray-100'
+                      : 'bg-gray-100 hover:bg-gray-200'
                   }`}
                 >
                   <div className="font-bold">{customer.name}</div>
@@ -238,7 +237,7 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
                   <select
                     value={emptyCylinder}
                     onChange={(e) => setEmptyCylinder(e.target.value)}
-                    className="w-full p-3 border rounded-xl"
+                    className="w-full p-3 border rounded-xl focus:border-blue-500 focus:outline-none"
                   >
                     <option>लोकप्रिय</option>
                     <option>सुगम</option>
@@ -254,7 +253,7 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
                     onChange={(e) => setNotes(e.target.value)}
                     rows="2"
                     placeholder="जस्तै: रु.२०० बाँकी"
-                    className="w-full p-3 border rounded-xl"
+                    className="w-full p-3 border rounded-xl focus:border-blue-500 focus:outline-none"
                   />
                 </div>
               </>
@@ -264,7 +263,7 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
               <button
                 onClick={addToQueue}
                 disabled={!selectedCustomer}
-                className="flex-1 bg-blue-900 text-white py-3 rounded-full font-semibold"
+                className="flex-1 bg-blue-900 text-white py-3 rounded-full font-semibold hover:bg-blue-800 transition disabled:opacity-50"
               >
                 ✅ थप्नुहोस्
               </button>
@@ -274,7 +273,7 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
                   setSelectedCustomer(null);
                   setSearchTerm('');
                 }}
-                className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-full font-semibold"
+                className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-full font-semibold hover:bg-gray-400 transition"
               >
                 रद्द गर्नुहोस्
               </button>
