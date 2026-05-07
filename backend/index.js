@@ -142,6 +142,24 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
         .eq('id', queueId);
     }
     
+    // ========== STOCK VALIDATION (CHECK BEFORE TRANSACTION) ==========
+    
+    // Check if filled cylinder is in stock
+    if (filledCylinder && filledCylinder !== 'कोही छैन') {
+      const { data: stockCheck } = await supabase
+        .from('stock')
+        .select('filled_count')
+        .eq('cylinder_type', filledCylinder)
+        .single();
+      
+      if (!stockCheck || stockCheck.filled_count <= 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `${filledCylinder} को स्टक सकियो। कृपया पहिले रिफिल गर्नुहोस्।` 
+        });
+      }
+    }
+    
     // Insert transaction
     const { data, error } = await supabase
       .from('transactions')
@@ -171,7 +189,7 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
         .single();
       
       if (stockFilled) {
-        const newFilledCount = Math.max(0, stockFilled.filled_count - 1);
+        const newFilledCount = stockFilled.filled_count - 1;  // Removed Math.max
         await supabase
           .from('stock')
           .update({ filled_count: newFilledCount, updated_at: new Date() })
