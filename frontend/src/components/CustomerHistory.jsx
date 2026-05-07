@@ -111,8 +111,12 @@ function CustomerHistory() {
                 )}
                 
                 <div className="flex justify-between mt-2 flex-wrap gap-2">
-                  <span className="text-red-600">📤 खाली: {t.empty_cylinder}</span>
-                  <span className="text-green-600">📥 भरिएको: {t.filled_cylinder}</span>
+                  <span className="text-red-600">
+                    📤 खाली: {t.empty_cylinder === 'कोही छैन' ? '🆕 नयाँ खरिद (कोही छैन)' : t.empty_cylinder}
+                  </span>
+                  <span className="text-green-600">
+                    📥 भरिएको: {t.filled_cylinder === 'कोही छैन' ? '🔄 फिर्ता (कोही छैन)' : t.filled_cylinder}
+                  </span>
                 </div>
                 {t.remarks && <div className="text-sm text-gray-500 mt-2">📝 {t.remarks}</div>}
               </div>

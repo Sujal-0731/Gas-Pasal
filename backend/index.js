@@ -30,7 +30,6 @@ app.get('/api/health', (req, res) => {
 
 // ========== CUSTOMER ROUTES ==========
 
-// Get all customers
 app.get('/api/customers', verifyPin, async (req, res) => {
   try {
     const { search } = req.query;
@@ -46,7 +45,6 @@ app.get('/api/customers', verifyPin, async (req, res) => {
   }
 });
 
-// Add new customer
 app.post('/api/customers', verifyPin, async (req, res) => {
   try {
     const { name, phone, address, remarks } = req.body;
@@ -93,7 +91,6 @@ app.post('/api/customers', verifyPin, async (req, res) => {
 
 // ========== TRANSACTION ROUTES ==========
 
-// Add transaction AND update stock
 app.post('/api/transactions', verifyPin, async (req, res) => {
   try {
     const { customerName, emptyCylinder, filledCylinder, remarks, queueId } = req.body;
@@ -128,7 +125,6 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
     
     if (queueId) {
       source = 'queue';
-      // Get the original queued date
       const { data: queueData } = await supabase
         .from('queue')
         .select('queued_at')
@@ -137,7 +133,6 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
       
       queueDate = queueData?.queued_at;
       
-      // Mark queue as completed
       await supabase
         .from('queue')
         .update({
@@ -166,8 +161,9 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
     if (error) throw error;
     
     // ========== UPDATE STOCK FROM TRANSACTION ==========
-    // 1. Decrease Filled stock (customer took a filled cylinder)
-    if (filledCylinder) {
+    
+    // 1. Handle Filled Cylinder (Customer takes filled cylinder)
+    if (filledCylinder && filledCylinder !== 'कोही छैन') {
       const { data: stockFilled } = await supabase
         .from('stock')
         .select('filled_count')
@@ -183,8 +179,8 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
       }
     }
     
-    // 2. Increase Empty stock (customer brought an empty cylinder)
-    if (emptyCylinder) {
+    // 2. Handle Empty Cylinder (Customer brings empty cylinder)
+    if (emptyCylinder && emptyCylinder !== 'कोही छैन') {
       const { data: stockEmpty } = await supabase
         .from('stock')
         .select('empty_count')
@@ -207,7 +203,6 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
   }
 });
 
-// Get customer history
 app.get('/api/customers/:name/history', verifyPin, async (req, res) => {
   try {
     const { name } = req.params;
@@ -230,12 +225,10 @@ app.get('/api/customers/:name/history', verifyPin, async (req, res) => {
     if (transError) throw transError;
     
     const formattedTransactions = (transactions || []).map(t => {
-      // Format transaction date
       const transDate = new Date(t.created_at);
       const formattedTransDate = transDate.toLocaleDateString('ne-NP');
       const formattedTransTime = transDate.toLocaleTimeString('ne-NP', { hour: '2-digit', minute: '2-digit' });
       
-      // Format queue date if exists
       let queueDateFormatted = null;
       let queueTimeFormatted = null;
       if (t.queue_date) {
@@ -266,7 +259,6 @@ app.get('/api/customers/:name/history', verifyPin, async (req, res) => {
 
 // ========== STOCK ROUTES ==========
 
-// Get stock
 app.get('/api/stock', verifyPin, async (req, res) => {
   try {
     const { data, error } = await supabase.from('stock').select('*').order('cylinder_type');
@@ -283,7 +275,6 @@ app.get('/api/stock', verifyPin, async (req, res) => {
 
 // ========== DEALER REFILL ROUTES ==========
 
-// Add dealer refill
 app.post('/api/refills', verifyPin, async (req, res) => {
   try {
     const { 
@@ -291,71 +282,118 @@ app.post('/api/refills', verifyPin, async (req, res) => {
       lokpriyaFilled, lokpriyaEmpty,
       sugamFilled, sugamEmpty,
       everestFilled, everestEmpty,
-      notes 
+      otherFilled, otherEmpty,
+      notes,
+      mode,
+      exchange_give_lokpriya,
+      exchange_give_sugam,
+      exchange_give_everest,
+      exchange_give_other
     } = req.body;
     
-    // Insert refill record
-    const { error } = await supabase.from('dealer_refills').insert([{
+    console.log('=== REFILL DATA RECEIVED ===');
+    console.log('Mode:', mode || 'normal');
+    console.log('Lokpriya - Filled:', lokpriyaFilled, 'Empty:', lokpriyaEmpty);
+    console.log('Sugam - Filled:', sugamFilled, 'Empty:', sugamEmpty);
+    console.log('Everest - Filled:', everestFilled, 'Empty:', everestEmpty);
+    console.log('Other - Filled:', otherFilled, 'Empty:', otherEmpty);
+    
+    // Insert refill record with exact values
+    const { error: insertError } = await supabase.from('dealer_refills').insert([{
       refill_date: refillDate,
-      lokpriya_filled: lokpriyaFilled || 0,
-      lokpriya_empty: lokpriyaEmpty || 0,
-      sugam_filled: sugamFilled || 0,
-      sugam_empty: sugamEmpty || 0,
-      everest_filled: everestFilled || 0,
-      everest_empty: everestEmpty || 0,
-      notes: notes || null
+      lokpriya_filled: Number(lokpriyaFilled) || 0,
+      lokpriya_empty: Number(lokpriyaEmpty) || 0,
+      sugam_filled: Number(sugamFilled) || 0,
+      sugam_empty: Number(sugamEmpty) || 0,
+      everest_filled: Number(everestFilled) || 0,
+      everest_empty: Number(everestEmpty) || 0,
+      other_filled: Number(otherFilled) || 0,
+      other_empty: Number(otherEmpty) || 0,
+      notes: notes || null,
+      mode: mode || 'normal',
+      exchange_give_lokpriya: Number(exchange_give_lokpriya) || 0,
+      exchange_give_sugam: Number(exchange_give_sugam) || 0,
+      exchange_give_everest: Number(exchange_give_everest) || 0,
+      exchange_give_other: Number(exchange_give_other) || 0
     }]);
     
-    if (error) throw error;
+    if (insertError) {
+      console.error('Insert error:', insertError);
+      throw insertError;
+    }
     
-    // Update stock based on refill
+    // Update stock for each cylinder type
     const cylinders = [
-      { name: 'लोकप्रिय', filled: lokpriyaFilled || 0, empty: lokpriyaEmpty || 0 },
-      { name: 'सुगम', filled: sugamFilled || 0, empty: sugamEmpty || 0 },
-      { name: 'एभरेस्ट', filled: everestFilled || 0, empty: everestEmpty || 0 }
+      { name: 'लोकप्रिय', filled: Number(lokpriyaFilled) || 0, empty: Number(lokpriyaEmpty) || 0 },
+      { name: 'सुगम', filled: Number(sugamFilled) || 0, empty: Number(sugamEmpty) || 0 },
+      { name: 'एभरेस्ट', filled: Number(everestFilled) || 0, empty: Number(everestEmpty) || 0 },
+      { name: 'अन्य / Other', filled: Number(otherFilled) || 0, empty: Number(otherEmpty) || 0 }
     ];
     
     for (const cyl of cylinders) {
-      if (cyl.filled !== 0) {
-        const { data: current } = await supabase
-          .from('stock')
-          .select('filled_count')
-          .eq('cylinder_type', cyl.name)
-          .single();
-        
-        if (current) {
-          const newFilledCount = Math.max(0, (current.filled_count || 0) + cyl.filled);
-          await supabase
-            .from('stock')
-            .update({ filled_count: newFilledCount, updated_at: new Date() })
-            .eq('cylinder_type', cyl.name);
-        }
+      // Only process if any value is non-zero
+      if (cyl.filled === 0 && cyl.empty === 0) {
+        console.log(`Skipping ${cyl.name} - no changes`);
+        continue;
       }
       
+      console.log(`Processing ${cyl.name}: Filled: ${cyl.filled}, Empty: ${cyl.empty}`);
+      
+      // Get current stock
+      const { data: current, error: stockError } = await supabase
+        .from('stock')
+        .select('filled_count, empty_count')
+        .eq('cylinder_type', cyl.name)
+        .single();
+      
+      if (stockError && stockError.code !== 'PGRST116') {
+        console.error(`Error fetching stock for ${cyl.name}:`, stockError);
+        continue;
+      }
+      
+      let newFilledCount = (current?.filled_count || 0);
+      let newEmptyCount = (current?.empty_count || 0);
+      
+      // Dealer GIVES filled cylinders -> INCREASE filled stock
+      if (cyl.filled !== 0) {
+        newFilledCount = newFilledCount + cyl.filled;
+        console.log(`  Filled: ${current?.filled_count || 0} -> ${newFilledCount} (+${cyl.filled})`);
+      }
+      
+      // Dealer TAKES empty cylinders -> DECREASE empty stock
       if (cyl.empty !== 0) {
-        const { data: current } = await supabase
-          .from('stock')
-          .select('empty_count')
-          .eq('cylinder_type', cyl.name)
-          .single();
-        
-        if (current) {
-          const newEmptyCount = Math.max(0, (current.empty_count || 0) - cyl.empty);
-          await supabase
-            .from('stock')
-            .update({ empty_count: newEmptyCount, updated_at: new Date() })
-            .eq('cylinder_type', cyl.name);
-        }
+        newEmptyCount = newEmptyCount - cyl.empty;
+        console.log(`  Empty: ${current?.empty_count || 0} -> ${newEmptyCount} (-${cyl.empty})`);
+      }
+      
+      // Ensure no negative values
+      newFilledCount = Math.max(0, newFilledCount);
+      newEmptyCount = Math.max(0, newEmptyCount);
+      
+      // Update stock
+      const { error: updateError } = await supabase
+        .from('stock')
+        .update({ 
+          filled_count: newFilledCount, 
+          empty_count: newEmptyCount, 
+          updated_at: new Date() 
+        })
+        .eq('cylinder_type', cyl.name);
+      
+      if (updateError) {
+        console.error(`Error updating stock for ${cyl.name}:`, updateError);
       }
     }
     
+    console.log('=== REFILL COMPLETED SUCCESSFULLY ===');
     res.json({ success: true, message: 'Dealer refill recorded successfully' });
+    
   } catch (error) {
+    console.error('Dealer refill error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// Get dealer refills
 app.get('/api/refills', verifyPin, async (req, res) => {
   try {
     const { data, error } = await supabase.from('dealer_refills').select('*').order('refill_date', { ascending: false });
@@ -368,7 +406,6 @@ app.get('/api/refills', verifyPin, async (req, res) => {
 
 // ========== QUEUE ROUTES ==========
 
-// Get waiting queue
 app.get('/api/queue', verifyPin, async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -384,7 +421,6 @@ app.get('/api/queue', verifyPin, async (req, res) => {
   }
 });
 
-// Add to queue
 app.post('/api/queue', verifyPin, async (req, res) => {
   try {
     const { customerId, customerName, emptyCylinder, notes } = req.body;
@@ -403,21 +439,23 @@ app.post('/api/queue', verifyPin, async (req, res) => {
     
     if (error) throw error;
     
-    // Increase empty stock
-    const { data: stockData } = await supabase
-      .from('stock')
-      .select('empty_count')
-      .eq('cylinder_type', emptyCylinder)
-      .single();
-    
-    if (stockData) {
-      await supabase
+    // Increase empty stock (only if it's a real cylinder, not 'कोही छैन')
+    if (emptyCylinder && emptyCylinder !== 'कोही छैन') {
+      const { data: stockData } = await supabase
         .from('stock')
-        .update({
-          empty_count: (stockData.empty_count || 0) + 1,
-          updated_at: new Date()
-        })
-        .eq('cylinder_type', emptyCylinder);
+        .select('empty_count')
+        .eq('cylinder_type', emptyCylinder)
+        .single();
+      
+      if (stockData) {
+        await supabase
+          .from('stock')
+          .update({
+            empty_count: (stockData.empty_count || 0) + 1,
+            updated_at: new Date()
+          })
+          .eq('cylinder_type', emptyCylinder);
+      }
     }
     
     res.json({ success: true, message: 'Added to queue', data });
@@ -426,17 +464,43 @@ app.post('/api/queue', verifyPin, async (req, res) => {
   }
 });
 
-// Remove from queue (mark completed)
 app.delete('/api/queue/:id', verifyPin, async (req, res) => {
   try {
     const { id } = req.params;
     
+    // First, get the queue item to know which empty cylinder to adjust
+    const { data: queueItem, error: fetchError } = await supabase
+      .from('queue')
+      .select('empty_cylinder')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    
+    // Decrease empty stock (customer is taking back their empty cylinder)
+    if (queueItem && queueItem.empty_cylinder && queueItem.empty_cylinder !== 'कोही छैन') {
+      const { data: stockData } = await supabase
+        .from('stock')
+        .select('empty_count')
+        .eq('cylinder_type', queueItem.empty_cylinder)
+        .single();
+      
+      if (stockData) {
+        const newEmptyCount = Math.max(0, (stockData.empty_count || 0) - 1);
+        await supabase
+          .from('stock')
+          .update({ 
+            empty_count: newEmptyCount, 
+            updated_at: new Date() 
+          })
+          .eq('cylinder_type', queueItem.empty_cylinder);
+      }
+    }
+    
+    // Delete the queue record
     const { error } = await supabase
       .from('queue')
-      .update({
-        status: 'completed',
-        completed_at: new Date()
-      })
+      .delete()
       .eq('id', id);
     
     if (error) throw error;

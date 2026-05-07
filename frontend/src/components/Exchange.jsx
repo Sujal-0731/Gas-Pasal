@@ -12,7 +12,6 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
   const [remarks, setRemarks] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Handle queue customer selection
   useEffect(() => {
     if (queueCustomer) {
       setSelectedCustomer({ name: queueCustomer.name });
@@ -74,7 +73,7 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
           emptyCylinder,
           filledCylinder,
           remarks,
-          queueId: queueCustomer?.queueId || null  // Pass queue ID if from queue
+          queueId: queueCustomer?.queueId || null
         })
       });
       const data = await res.json();
@@ -82,12 +81,10 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
         setMessage('✅ लेनदेन सफलतापूर्वक रेकर्ड गरियो');
         setRemarks('');
         
-        // Clear queue customer after successful transaction
         if (queueCustomer && onClearQueueCustomer) {
           onClearQueueCustomer();
         }
         
-        // Reset form if not from queue
         if (!queueCustomer) {
           setSelectedCustomer(null);
           setSearchTerm('');
@@ -161,6 +158,8 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
           <option>लोकप्रिय</option>
           <option>सुगम</option>
           <option>एभरेस्ट</option>
+          <option>अन्य / Other</option>
+          <option>कोही छैन</option>
         </select>
       </div>
 
@@ -174,6 +173,8 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
           <option>लोकप्रिय</option>
           <option>सुगम</option>
           <option>एभरेस्ट</option>
+          <option>अन्य / Other</option>
+          <option>कोही छैन</option>
         </select>
       </div>
 
@@ -183,7 +184,7 @@ function Exchange({ setMessage, queueCustomer, onClearQueueCustomer }) {
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
           rows="2"
-          placeholder="जस्तै: रु.५०० बाँकी"
+          placeholder=""
           className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg"
         />
       </div>

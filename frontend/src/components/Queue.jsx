@@ -243,6 +243,7 @@ function Queue({ setMessage, onSelectCustomerFromQueue }) {
                     <option>लोकप्रिय</option>
                     <option>सुगम</option>
                     <option>एभरेस्ट</option>
+                    <option>अन्य / Other</option>
                   </select>
                 </div>
 
