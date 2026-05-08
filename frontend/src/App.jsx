@@ -155,9 +155,23 @@ function App() {
       )}
 
       <div className="max-w-lg mx-auto p-4 pb-24">
-        <div className="bg-blue-900 text-white rounded-2xl p-5 mb-5 text-center shadow-lg">
-          <h1 className="text-2xl font-bold">Anam Store</h1>
-          <p className="text-sm opacity-90">लोकप्रिय · सुगम · एभरेस्ट</p>
+        {/* Header with Logout button inside */}
+        <div className="bg-blue-900 text-white rounded-2xl p-5 mb-5 shadow-lg">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold">Anam Store</h1>
+              <p className="text-sm opacity-90 mt-1">लोकप्रिय · सुगम · एभरेस्ट</p>
+            </div>
+            <button
+              onClick={() => {
+                localStorage.removeItem('sujalAuth');
+                window.location.reload();
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm font-semibold transition"
+            >
+              🚪
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-2 mb-5 overflow-x-auto pb-2">
@@ -185,22 +199,12 @@ function App() {
             />
           )}
           {activeTab === 'newcustomer' && <NewCustomer showToast={showToast} />}
-          {activeTab === 'history' && <CustomerHistory />}
+          {activeTab === 'history' && <CustomerHistory showToast={showToast} />}
           {activeTab === 'queue' && <Queue showToast={showToast} onSelectCustomerFromQueue={handleSelectFromQueue} />}
           {activeTab === 'dealer' && <DealerRefill showToast={showToast} />}
           {activeTab === 'refillhistory' && <RefillHistory />}
           {activeTab === 'stock' && <StockSummary />}
         </div>
-
-        <button
-          onClick={() => {
-            localStorage.removeItem('sujalAuth');
-            window.location.reload();
-          }}
-          className="w-full bg-red-600 text-white py-3 rounded-full font-semibold mt-4"
-        >
-          🚪 लगआउट / Logout
-        </button>
       </div>
     </>
   );

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 const API_URL = import.meta.env.VITE_API_URL;
 const PIN_CODE = import.meta.env.VITE_PIN_CODE;
 
-function CustomerHistory() {
+function CustomerHistory({ showToast }) {
   const [customers, setCustomers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -26,8 +26,30 @@ function CustomerHistory() {
       }
     } catch (error) {
       console.error('Error loading customers:', error);
+      if (showToast) showToast('ग्राहक लोड गर्न असफल', 'error');
     }
     setLoading(false);
+  };
+
+  // Make phone call
+  const makePhoneCall = (phoneNumber) => {
+    if (!phoneNumber) {
+      if (showToast) showToast('फोन नम्बर उपलब्ध छैन', 'error');
+      return;
+    }
+    window.location.href = `tel:${phoneNumber}`;
+  };
+
+  // Copy phone number
+  const copyPhoneNumber = async (phoneNumber) => {
+    if (!phoneNumber) return;
+    try {
+      await navigator.clipboard.writeText(phoneNumber);
+      if (showToast) showToast(`${phoneNumber} कपी गरियो`, 'success');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      if (showToast) showToast('कपी गर्न असफल', 'error');
+    }
   };
 
   const filteredCustomers = customers.filter(c =>
@@ -47,6 +69,7 @@ function CustomerHistory() {
       }
     } catch (error) {
       console.error('Error loading history:', error);
+      if (showToast) showToast('इतिहास लोड गर्न असफल', 'error');
     }
     setLoading(false);
   };
@@ -72,7 +95,25 @@ function CustomerHistory() {
           </div>
           <div className="flex justify-between mb-2 flex-wrap gap-2">
             <span className="font-bold">📞 फोन:</span>
-            <span>{history?.customer?.phone || 'छैन'}</span>
+            <div className="flex items-center gap-2">
+              <span>{history?.customer?.phone || 'छैन'}</span>
+              {history?.customer?.phone && (
+                <>
+                  <button
+                    onClick={() => makePhoneCall(history.customer.phone)}
+                    className="bg-green-500 text-white px-3 py-1 rounded-full text-sm"
+                  >
+                    📞 कल
+                  </button>
+                  <button
+                    onClick={() => copyPhoneNumber(history.customer.phone)}
+                    className="bg-gray-500 text-white px-3 py-1 rounded-full text-sm"
+                  >
+                    📋 कपी
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <div className="flex justify-between mb-2 flex-wrap gap-2">
             <span className="font-bold">📍 ठेगाना:</span>
@@ -103,7 +144,6 @@ function CustomerHistory() {
                   )}
                 </div>
                 
-                {/* Show queue date if from queue */}
                 {t.source === 'queue' && t.queue_date_formatted && (
                   <div className="text-xs text-blue-600 mt-1">
                     📌 क्यूमा थपिएको: {t.queue_date_formatted} {t.queue_time_formatted ? `| ⏰ ${t.queue_time_formatted}` : ''}
@@ -153,8 +193,23 @@ function CustomerHistory() {
               onClick={() => viewHistory(customer)}
               className="bg-gray-100 p-3 rounded-xl cursor-pointer active:bg-gray-200"
             >
-              <div className="font-bold text-lg">👤 {customer.name}</div>
-              <div className="text-sm text-gray-600">📞 {customer.phone || 'नम्बर छैन'}</div>
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="font-bold text-lg">👤 {customer.name}</div>
+                  <div className="text-sm text-gray-600">📞 {customer.phone || 'नम्बर छैन'}</div>
+                </div>
+                {customer.phone && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      makePhoneCall(customer.phone);
+                    }}
+                    className="bg-green-500 text-white px-3 py-2 rounded-full text-sm"
+                  >
+                    📞 कल
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           {filteredCustomers.length === 0 && (

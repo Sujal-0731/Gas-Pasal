@@ -160,7 +160,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
           <option>अन्य / Other</option>
           <option>कोही छैन</option>
         </select>
-        <p className="text-xs text-gray-500 mt-1">💡 "कोही छैन" → नयाँ सिलिन्डर खरिद (खाली ल्याएन)</p>
+        <p className="text-xs text-gray-500 mt-1">💡 "कोही छैन" → नयाँ सिलिन्डर खरिद / खाली ल्याएन</p>
       </div>
 
       <div className="mb-4">
@@ -176,7 +176,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
           <option>अन्य / Other</option>
           <option>कोही छैन</option>
         </select>
-        <p className="text-xs text-gray-500 mt-1">💡 "कोही छैन" → खाली सिलिन्डर मात्र फिर्ता (भरिएको लिएन)</p>
+        <p className="text-xs text-gray-500 mt-1">💡 "कोही छैन" → खाली सिलिन्डर मात्र फिर्ता / भरिएको लिएन</p>
       </div>
 
       <div className="mb-4">
@@ -184,8 +184,8 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
         <textarea
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
-          rows="2"
-          placeholder="जस्तै: रु.५०० बाँकी"
+          rows="1"
+          placeholder=""
           className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg"
         />
       </div>

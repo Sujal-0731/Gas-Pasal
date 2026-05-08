@@ -54,7 +54,7 @@ function NewCustomer({ showToast }) {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="रामेश गुप्ता"
+          placeholder=""
           className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 focus:outline-none"
         />
       </div>
@@ -65,7 +65,7 @@ function NewCustomer({ showToast }) {
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          placeholder="९८७६५४३२१०"
+          placeholder=""
           className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 focus:outline-none"
         />
       </div>
@@ -76,7 +76,7 @@ function NewCustomer({ showToast }) {
           type="text"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="गान्धी नगर"
+          placeholder=""
           className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 focus:outline-none"
         />
       </div>
@@ -87,7 +87,7 @@ function NewCustomer({ showToast }) {
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
           rows="2"
-          placeholder="जम्मा रु.२०० बाँकी"
+          placeholder=""
           className="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-blue-500 focus:outline-none"
         />
       </div>
