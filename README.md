@@ -1,4 +1,4 @@
-# 🏪 Sujal Kirana Store -Gas Cylinder Management System
+# Anam Store -Gas Cylinder Management System
 ## Features
 - 🔐 PIN authentication (parent-friendly, localStorage remember)
 - 👥 Customer registration & search
