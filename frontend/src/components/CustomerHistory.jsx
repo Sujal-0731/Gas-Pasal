@@ -40,17 +40,6 @@ function CustomerHistory({ showToast }) {
     window.location.href = `tel:${phoneNumber}`;
   };
 
-  // Copy phone number
-  const copyPhoneNumber = async (phoneNumber) => {
-    if (!phoneNumber) return;
-    try {
-      await navigator.clipboard.writeText(phoneNumber);
-      if (showToast) showToast(`${phoneNumber} कपी गरियो`, 'success');
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      if (showToast) showToast('कपी गर्न असफल', 'error');
-    }
-  };
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -84,46 +73,39 @@ function CustomerHistory({ showToast }) {
           ← सबै ग्राहक
         </button>
 
-        <div className="bg-indigo-50 p-4 rounded-xl mb-4">
-          <div className="flex justify-between mb-2 flex-wrap gap-2">
-            <span className="font-bold">🆔 ID:</span>
-            <span>{history?.customer?.customer_id}</span>
-          </div>
-          <div className="flex justify-between mb-2 flex-wrap gap-2">
-            <span className="font-bold">👤 नाम:</span>
-            <span>{history?.customer?.name}</span>
-          </div>
-          <div className="flex justify-between mb-2 flex-wrap gap-2">
-            <span className="font-bold">📞 फोन:</span>
-            <div className="flex items-center gap-2">
-              <span>{history?.customer?.phone || 'छैन'}</span>
-              {history?.customer?.phone && (
-                <>
-                  <button
-                    onClick={() => makePhoneCall(history.customer.phone)}
-                    className="bg-green-500 text-white px-3 py-1 rounded-full text-sm"
-                  >
-                    📞 कल
-                  </button>
-                  <button
-                    onClick={() => copyPhoneNumber(history.customer.phone)}
-                    className="bg-gray-500 text-white px-3 py-1 rounded-full text-sm"
-                  >
-                    📋 कपी
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="flex justify-between mb-2 flex-wrap gap-2">
-            <span className="font-bold">📍 ठेगाना:</span>
-            <span>{history?.customer?.address || 'छैन'}</span>
-          </div>
-          <div className="flex justify-between mb-2 flex-wrap gap-2">
-            <span className="font-bold">📝 कैफियत:</span>
-            <span>{history?.customer?.remarks || 'छैन'}</span>
-          </div>
-        </div>
+<div className="bg-indigo-50 rounded-xl mb-4 overflow-hidden">
+  {/* Header with Title and Call Button */}
+  <div className="flex justify-between items-center py-3 px-4 bg-indigo-100">
+    <h3 className="font-bold text-lg text-indigo-800">📋 ग्राहक विवरण</h3>
+    {history?.customer?.phone && (
+      <button
+        onClick={() => makePhoneCall(history.customer.phone)}
+        className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold transition flex items-center gap-1"
+      >
+        📞 कल
+      </button>
+    )}
+  </div>
+  
+  {/* Details - Centered text */}
+  <div className="p-4 space-y-2">
+    <div className="text-center">
+      <span className="font-bold">🆔 ID:</span> {history?.customer?.customer_id}
+    </div>
+    <div className="text-center">
+      <span className="font-bold">👤 नाम:</span> {history?.customer?.name}
+    </div>
+    <div className="text-center">
+      <span className="font-bold">📞 फोन:</span> {history?.customer?.phone || 'छैन'}
+    </div>
+    <div className="text-center">
+      <span className="font-bold">📍 ठेगाना:</span> {history?.customer?.address || 'छैन'}
+    </div>
+    <div className="text-center">
+      <span className="font-bold">📝 कैफियत:</span> {history?.customer?.remarks || 'छैन'}
+    </div>
+  </div>
+</div>
 
         <div className="bg-blue-900 text-white text-center py-3 rounded-full mb-4 font-bold">
           📊 कुल लेनदेन: {history?.totalExchanges || 0}

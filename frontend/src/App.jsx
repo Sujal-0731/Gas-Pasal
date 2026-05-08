@@ -39,6 +39,7 @@ function App() {
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
   const [queueCustomer, setQueueCustomer] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   // Simple showToast - no complex timeout management
   const showToast = (message, type = 'success') => {
@@ -48,6 +49,15 @@ function App() {
       setToast(null);
     }, 3000);
   };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (showMenu) setShowMenu(false);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showMenu]);
 
   useEffect(() => {
     const savedAuth = localStorage.getItem('sujalAuth');
@@ -155,22 +165,40 @@ function App() {
       )}
 
       <div className="max-w-lg mx-auto p-4 pb-24">
-        {/* Header with Logout button inside */}
+        {/* Header with Settings Dropdown */}
         <div className="bg-blue-900 text-white rounded-2xl p-5 mb-5 shadow-lg">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold">Anam Store</h1>
+              <h1 className="text-2xl font-bold">🏪 Anam Store</h1>
               <p className="text-sm opacity-90 mt-1">लोकप्रिय · सुगम · एभरेस्ट</p>
             </div>
-            <button
-              onClick={() => {
-                localStorage.removeItem('sujalAuth');
-                window.location.reload();
-              }}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm font-semibold transition"
-            >
-              🚪 
-            </button>
+            
+            {/* Settings Gear Dropdown */}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenu(!showMenu);
+                }}
+                className="text-gray-300 hover:text-white hover:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center text-lg transition"
+              >
+                ⚙️
+              </button>
+              
+              {showMenu && (
+                <div className="absolute right-0 mt-2 w-36 bg-white rounded-lg shadow-lg overflow-hidden z-50">
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem('sujalAuth');
+                      window.location.reload();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition flex items-center gap-2"
+                  >
+                    🚪 Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
