@@ -12,15 +12,3 @@ frontend/.env
 dist/
 build/
 frontend/dist/
-
-# Logs
-*.log
-npm-debug.log*
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# IDE files
-.vscode/
-.idea/
