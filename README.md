@@ -38,7 +38,7 @@ This repository contains a React + Vite frontend and a Node.js + Express backend
 - stock tracking by cylinder type
 - queue creation, completion, and stock adjustment
 - customer history display
-- Nepali-language UI with local date formatting where used
+- Nepali-language UI 
 
 ## Local Setup
 
@@ -112,7 +112,6 @@ All backend API routes require the header `x-pin` with the correct `PIN_CODE`.
 ## Data Notes
 - The backend stores data in Supabase tables and uses a normal timestamp-based workflow.
 - Customer history uses Nepali locale formatting in the frontend/back-end display, but the core stored dates are Gregorian.
-- If you want true Bikram Sambat dates, a future update should add a BS conversion layer on top of the stored timestamps.
 
 ## How an AI Agent Should Understand This Repo
 - This is a small shop management app for gas cylinder trading.
