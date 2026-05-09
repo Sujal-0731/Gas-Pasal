@@ -77,20 +77,16 @@ function DealerRefill({ showToast }) {
       } else {
         sendData = {
           refillDate,
-          lokpriyaFilled: 0,
-          lokpriyaEmpty: lokpriyaTake,
-          sugamFilled: 0,
-          sugamEmpty: sugamTake,
-          everestFilled: 0,
-          everestEmpty: everestTake,
-          otherFilled: 0,
-          otherEmpty: otherTake,
-          notes: notes ? `[EXCHANGE] ${notes}` : '[EXCHANGE] Empty exchange',
           mode: 'exchange',
+          notes: notes || 'खाली साटासाट',
           exchange_give_lokpriya: lokpriyaGive,
           exchange_give_sugam: sugamGive,
           exchange_give_everest: everestGive,
-          exchange_give_other: otherGive
+          exchange_give_other: otherGive,
+          exchange_take_lokpriya: lokpriyaTake,
+          exchange_take_sugam: sugamTake,
+          exchange_take_everest: everestTake,
+          exchange_take_other: otherTake
         };
       }
       
@@ -102,21 +98,37 @@ function DealerRefill({ showToast }) {
         },
         body: JSON.stringify(sendData)
       });
+      
+      // ✅ IMPORTANT: Parse the response first
       const data = await res.json();
-      if (data.success) {
+      
+      // ✅ Check if response is successful
+      if (res.ok && data.success) {
         showToast(mode === 'normal' ? 'रिफिल सुरक्षित गरियो' : 'खाली साटासाट सुरक्षित गरियो', 'success');
         
-        setLokpriyaGive(0); setLokpriyaTake(0);
-        setSugamGive(0); setSugamTake(0);
-        setEverestGive(0); setEverestTake(0);
-        setOtherGive(0); setOtherTake(0);
+        // Reset form
+        setLokpriyaGive(0);
+        setLokpriyaTake(0);
+        setSugamGive(0);
+        setSugamTake(0);
+        setEverestGive(0);
+        setEverestTake(0);
+        setOtherGive(0);
+        setOtherTake(0);
         setNotes('');
-        loadRefillHistory();
+        
+        // Reload history
+        await loadRefillHistory();
+        
       } else {
-        showToast(data.message, 'error');
+        // ✅ Show the error message from backend
+        const errorMessage = data.message || (mode === 'normal' ? 'रिफिल सेभ गर्न असफल' : 'साटासाट सेभ गर्न असफल');
+        showToast(errorMessage, 'error');
       }
+      
     } catch (error) {
       console.error('Save error:', error);
+      // ✅ Show network error
       showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
     }
     setLoading(false);

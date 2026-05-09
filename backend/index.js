@@ -300,118 +300,230 @@ app.post('/api/refills', verifyPin, async (req, res) => {
       lokpriyaFilled, lokpriyaEmpty,
       sugamFilled, sugamEmpty,
       everestFilled, everestEmpty,
-      otherFilled, otherEmpty,
       notes,
       mode,
+      otherFilled, otherEmpty,
       exchange_give_lokpriya,
       exchange_give_sugam,
       exchange_give_everest,
-      exchange_give_other
+      exchange_give_other,
+      exchange_take_lokpriya,
+      exchange_take_sugam,
+      exchange_take_everest,
+      exchange_take_other
     } = req.body;
-    
+
     console.log('=== REFILL DATA RECEIVED ===');
     console.log('Mode:', mode || 'normal');
-    console.log('Lokpriya - Filled:', lokpriyaFilled, 'Empty:', lokpriyaEmpty);
-    console.log('Sugam - Filled:', sugamFilled, 'Empty:', sugamEmpty);
-    console.log('Everest - Filled:', everestFilled, 'Empty:', everestEmpty);
-    console.log('Other - Filled:', otherFilled, 'Empty:', otherEmpty);
     
-    // Insert refill record with exact values
-    const { error: insertError } = await supabase.from('dealer_refills').insert([{
+    // ========== STEP 1: VALIDATE STOCK (BEFORE INSERTING ANYTHING) ==========
+    if (mode === 'exchange') {
+      // EXCHANGE MODE VALIDATION
+      console.log('\n🔍 Validating stock for EXCHANGE mode...');
+      
+      const cylinders = [
+        { name: 'लोकप्रिय', take: Number(exchange_take_lokpriya) || 0 },
+        { name: 'सुगम', take: Number(exchange_take_sugam) || 0 },
+        { name: 'एभरेस्ट', take: Number(exchange_take_everest) || 0 },
+        { name: 'अन्य / Other', take: Number(exchange_take_other) || 0 }
+      ];
+      
+      for (const cyl of cylinders) {
+        if (cyl.take === 0) continue;
+        
+        const { data: stock, error: stockError } = await supabase
+          .from('stock')
+          .select('empty_count')
+          .eq('cylinder_type', cyl.name)
+          .single();
+        
+        const currentEmpty = stock?.empty_count || 0;
+        
+        if (cyl.take > currentEmpty) {
+          console.error(`❌ Stock validation failed for ${cyl.name}`);
+          return res.status(400).json({ 
+            success: false, 
+            message: `${cyl.name} को खाली स्टक छैन (उपलब्ध: ${currentEmpty}, चाहिने: ${cyl.take})` 
+          });
+        }
+        
+        console.log(`✅ ${cyl.name}: Available ${currentEmpty}, Need to give ${cyl.take} - OK`);
+      }
+      
+    } else {
+      // NORMAL MODE VALIDATION
+      console.log('\n🔍 Validating stock for NORMAL mode...');
+      
+      const cylinders = [
+        { name: 'लोकप्रिय', take: Number(lokpriyaEmpty) || 0 },
+        { name: 'सुगम', take: Number(sugamEmpty) || 0 },
+        { name: 'एभरेस्ट', take: Number(everestEmpty) || 0 },
+        { name: 'अन्य / Other', take: Number(otherEmpty) || 0 }
+      ];
+      
+      for (const cyl of cylinders) {
+        if (cyl.take === 0) continue;
+        
+        const { data: stock, error: stockError } = await supabase
+          .from('stock')
+          .select('empty_count')
+          .eq('cylinder_type', cyl.name)
+          .single();
+        
+        const currentEmpty = stock?.empty_count || 0;
+        
+        if (cyl.take > currentEmpty) {
+          console.error(`❌ Stock validation failed for ${cyl.name}`);
+          return res.status(400).json({ 
+            success: false, 
+            message: `${cyl.name} को खाली स्टक छैन (उपलब्ध: ${currentEmpty}, चाहिने: ${cyl.take})` 
+          });
+        }
+        
+        console.log(`✅ ${cyl.name}: Available ${currentEmpty}, Need to give ${cyl.take} - OK`);
+      }
+    }
+    
+    // ========== STEP 2: INSERT REFILL RECORD (ONLY IF STOCK IS SUFFICIENT) ==========
+    console.log('\n✅ Stock validation passed. Inserting refill record...');
+    
+    const insertData = {
       refill_date: refillDate,
-      lokpriya_filled: Number(lokpriyaFilled) || 0,
-      lokpriya_empty: Number(lokpriyaEmpty) || 0,
-      sugam_filled: Number(sugamFilled) || 0,
-      sugam_empty: Number(sugamEmpty) || 0,
-      everest_filled: Number(everestFilled) || 0,
-      everest_empty: Number(everestEmpty) || 0,
-      other_filled: Number(otherFilled) || 0,
-      other_empty: Number(otherEmpty) || 0,
       notes: notes || null,
-      mode: mode || 'normal',
-      exchange_give_lokpriya: Number(exchange_give_lokpriya) || 0,
-      exchange_give_sugam: Number(exchange_give_sugam) || 0,
-      exchange_give_everest: Number(exchange_give_everest) || 0,
-      exchange_give_other: Number(exchange_give_other) || 0
-    }]);
+      mode: mode || 'normal'
+    };
+    
+    if (mode === 'exchange') {
+      insertData.exchange_give_lokpriya = Number(exchange_give_lokpriya) || 0;
+      insertData.exchange_give_sugam = Number(exchange_give_sugam) || 0;
+      insertData.exchange_give_everest = Number(exchange_give_everest) || 0;
+      insertData.exchange_give_other = Number(exchange_give_other) || 0;
+      insertData.exchange_take_lokpriya = Number(exchange_take_lokpriya) || 0;
+      insertData.exchange_take_sugam = Number(exchange_take_sugam) || 0;
+      insertData.exchange_take_everest = Number(exchange_take_everest) || 0;
+      insertData.exchange_take_other = Number(exchange_take_other) || 0;
+      insertData.lokpriya_filled = 0;
+      insertData.lokpriya_empty = 0;
+      insertData.sugam_filled = 0;
+      insertData.sugam_empty = 0;
+      insertData.everest_filled = 0;
+      insertData.everest_empty = 0;
+      insertData.other_filled = 0;
+      insertData.other_empty = 0;
+    } else {
+      insertData.lokpriya_filled = Number(lokpriyaFilled) || 0;
+      insertData.lokpriya_empty = Number(lokpriyaEmpty) || 0;
+      insertData.sugam_filled = Number(sugamFilled) || 0;
+      insertData.sugam_empty = Number(sugamEmpty) || 0;
+      insertData.everest_filled = Number(everestFilled) || 0;
+      insertData.everest_empty = Number(everestEmpty) || 0;
+      insertData.other_filled = Number(otherFilled) || 0;
+      insertData.other_empty = Number(otherEmpty) || 0;
+      insertData.exchange_give_lokpriya = 0;
+      insertData.exchange_give_sugam = 0;
+      insertData.exchange_give_everest = 0;
+      insertData.exchange_give_other = 0;
+      insertData.exchange_take_lokpriya = 0;
+      insertData.exchange_take_sugam = 0;
+      insertData.exchange_take_everest = 0;
+      insertData.exchange_take_other = 0;
+    }
+    
+    const { error: insertError } = await supabase
+      .from('dealer_refills')
+      .insert([insertData]);
     
     if (insertError) {
       console.error('Insert error:', insertError);
       throw insertError;
     }
     
-    // Update stock for each cylinder type
-    const cylinders = [
-      { name: 'लोकप्रिय', filled: Number(lokpriyaFilled) || 0, empty: Number(lokpriyaEmpty) || 0 },
-      { name: 'सुगम', filled: Number(sugamFilled) || 0, empty: Number(sugamEmpty) || 0 },
-      { name: 'एभरेस्ट', filled: Number(everestFilled) || 0, empty: Number(everestEmpty) || 0 },
-      { name: 'अन्य / Other', filled: Number(otherFilled) || 0, empty: Number(otherEmpty) || 0 }
-    ];
+    console.log('✅ Refill record inserted');
     
-    for (const cyl of cylinders) {
-      // Only process if any value is non-zero
-      if (cyl.filled === 0 && cyl.empty === 0) {
-        console.log(`Skipping ${cyl.name} - no changes`);
-        continue;
+    // ========== STEP 3: UPDATE STOCK ==========
+    if (mode === 'exchange') {
+      console.log('\n🔄 Updating stock for EXCHANGE mode...');
+      
+      const cylinders = [
+        { name: 'लोकप्रिय', give: Number(exchange_give_lokpriya) || 0, take: Number(exchange_take_lokpriya) || 0 },
+        { name: 'सुगम', give: Number(exchange_give_sugam) || 0, take: Number(exchange_take_sugam) || 0 },
+        { name: 'एभरेस्ट', give: Number(exchange_give_everest) || 0, take: Number(exchange_take_everest) || 0 },
+        { name: 'अन्य / Other', give: Number(exchange_give_other) || 0, take: Number(exchange_take_other) || 0 }
+      ];
+      
+      for (const cyl of cylinders) {
+        if (cyl.give === 0 && cyl.take === 0) continue;
+        
+        const { data: stock, error: stockError } = await supabase
+          .from('stock')
+          .select('empty_count')
+          .eq('cylinder_type', cyl.name)
+          .single();
+        
+        let currentEmpty = stock?.empty_count || 0;
+        let newEmpty = currentEmpty + cyl.give - cyl.take;
+        
+        console.log(`   ${cyl.name}: ${currentEmpty} + ${cyl.give} - ${cyl.take} = ${newEmpty}`);
+        
+        if (stock) {
+          await supabase
+            .from('stock')
+            .update({ empty_count: newEmpty, updated_at: new Date() })
+            .eq('cylinder_type', cyl.name);
+        } else {
+          await supabase
+            .from('stock')
+            .insert([{ cylinder_type: cyl.name, empty_count: newEmpty, filled_count: 0, updated_at: new Date() }]);
+        }
       }
       
-      console.log(`Processing ${cyl.name}: Filled: ${cyl.filled}, Empty: ${cyl.empty}`);
+    } else {
+      console.log('\n🔄 Updating stock for NORMAL mode...');
       
-      // Get current stock
-      const { data: current, error: stockError } = await supabase
-        .from('stock')
-        .select('filled_count, empty_count')
-        .eq('cylinder_type', cyl.name)
-        .single();
+      const cylinders = [
+        { name: 'लोकप्रिय', give: Number(lokpriyaFilled) || 0, take: Number(lokpriyaEmpty) || 0 },
+        { name: 'सुगम', give: Number(sugamFilled) || 0, take: Number(sugamEmpty) || 0 },
+        { name: 'एभरेस्ट', give: Number(everestFilled) || 0, take: Number(everestEmpty) || 0 },
+        { name: 'अन्य / Other', give: Number(otherFilled) || 0, take: Number(otherEmpty) || 0 }
+      ];
       
-      if (stockError && stockError.code !== 'PGRST116') {
-        console.error(`Error fetching stock for ${cyl.name}:`, stockError);
-        continue;
-      }
-      
-      let newFilledCount = (current?.filled_count || 0);
-      let newEmptyCount = (current?.empty_count || 0);
-      
-      // Dealer GIVES filled cylinders -> INCREASE filled stock
-      if (cyl.filled !== 0) {
-        newFilledCount = newFilledCount + cyl.filled;
-        console.log(`  Filled: ${current?.filled_count || 0} -> ${newFilledCount} (+${cyl.filled})`);
-      }
-      
-      // Dealer TAKES empty cylinders -> DECREASE empty stock
-      if (cyl.empty !== 0) {
-        newEmptyCount = newEmptyCount - cyl.empty;
-        console.log(`  Empty: ${current?.empty_count || 0} -> ${newEmptyCount} (-${cyl.empty})`);
-      }
-      
-      // Ensure no negative values
-      newFilledCount = Math.max(0, newFilledCount);
-      newEmptyCount = Math.max(0, newEmptyCount);
-      
-      // Update stock
-      const { error: updateError } = await supabase
-        .from('stock')
-        .update({ 
-          filled_count: newFilledCount, 
-          empty_count: newEmptyCount, 
-          updated_at: new Date() 
-        })
-        .eq('cylinder_type', cyl.name);
-      
-      if (updateError) {
-        console.error(`Error updating stock for ${cyl.name}:`, updateError);
+      for (const cyl of cylinders) {
+        if (cyl.give === 0 && cyl.take === 0) continue;
+        
+        const { data: stock, error: stockError } = await supabase
+          .from('stock')
+          .select('filled_count, empty_count')
+          .eq('cylinder_type', cyl.name)
+          .single();
+        
+        let currentFilled = stock?.filled_count || 0;
+        let currentEmpty = stock?.empty_count || 0;
+        let newFilled = currentFilled + cyl.give;
+        let newEmpty = currentEmpty - cyl.take;
+        
+        console.log(`   ${cyl.name}: Filled ${currentFilled}→${newFilled}, Empty ${currentEmpty}→${newEmpty}`);
+        
+        if (stock) {
+          await supabase
+            .from('stock')
+            .update({ filled_count: newFilled, empty_count: newEmpty, updated_at: new Date() })
+            .eq('cylinder_type', cyl.name);
+        } else {
+          await supabase
+            .from('stock')
+            .insert([{ cylinder_type: cyl.name, filled_count: newFilled, empty_count: newEmpty, updated_at: new Date() }]);
+        }
       }
     }
     
-    console.log('=== REFILL COMPLETED SUCCESSFULLY ===');
-    res.json({ success: true, message: 'Dealer refill recorded successfully' });
+    console.log('\n✅ REFILL COMPLETED SUCCESSFULLY');
+    res.json({ success: true, message: mode === 'exchange' ? 'खाली साटासाट सफलतापूर्वक रेकर्ड गरियो' : 'रिफिल सफलतापूर्वक रेकर्ड गरियो' });
     
   } catch (error) {
-    console.error('Dealer refill error:', error);
+    console.error('❌ Dealer refill error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
 app.get('/api/refills', verifyPin, async (req, res) => {
   try {
     const { data, error } = await supabase.from('dealer_refills').select('*').order('refill_date', { ascending: false });
