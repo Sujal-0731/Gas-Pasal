@@ -19,15 +19,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 const PIN_CODE = import.meta.env.VITE_PIN_CODE;
 
 export function Dashboard({ showToast, onNavigate }) {
-  const [stats, setStats] = useState({
-    totalCustomers: 0,
-    activeQueue: 0,
-    totalFilled: 0,
-    totalEmpty: 0,
-    monthlySales: 0,
-  });
-  const [stock, setStock] = useState({});
-  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,66 +29,18 @@ export function Dashboard({ showToast, onNavigate }) {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [customersRes, stockRes, queueRes] = await Promise.all([
-        fetch(`${API_URL}/customers`, { headers: { 'x-pin': PIN_CODE } }),
-        fetch(`${API_URL}/stock`, { headers: { 'x-pin': PIN_CODE } }),
-        fetch(`${API_URL}/queue`, { headers: { 'x-pin': PIN_CODE } }),
-      ]);
-
-      const customersData = await customersRes.json();
-      const stockData = await stockRes.json();
-      const queueData = await queueRes.json();
-
-      let totalFilled = 0;
-      let totalEmpty = 0;
-      if (stockData.success && stockData.stock) {
-        Object.values(stockData.stock).forEach(s => {
-          totalFilled += s.filled || 0;
-          totalEmpty += s.empty || 0;
-        });
-      }
-
-      const customers = customersData.success ? customersData.data : [];
-      
-      let allTransactions = [];
-      for (const customer of customers) {
-        try {
-          const transRes = await fetch(`${API_URL}/customers/${encodeURIComponent(customer.name)}/history`, {
-            headers: { 'x-pin': PIN_CODE }
-          });
-          const transData = await transRes.json();
-          if (transData.success && transData.transactions) {
-            allTransactions = [...allTransactions, ...transData.transactions];
-          }
-        } catch (err) {
-          console.error(`Error fetching transactions for ${customer.name}:`, err);
-        }
-      }
-
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      const currentMonthSales = allTransactions.filter(t => {
-        const transDate = new Date(t.created_at);
-        return transDate.getMonth() === currentMonth && 
-               transDate.getFullYear() === currentYear &&
-               t.filled_cylinder !== 'कोही छैन';
-      }).length;
-
-      allTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      const recentTransactionsList = allTransactions.slice(0, 5);
-
-      setStats({
-        totalCustomers: customers.length,
-        activeQueue: queueData.success ? queueData.queue.length : 0,
-        totalFilled: totalFilled,
-        totalEmpty: totalEmpty,
-        monthlySales: currentMonthSales,
+      // ✅ SINGLE API CALL instead of multiple calls
+      const response = await fetch(`${API_URL}/dashboard`, {
+        headers: { 'x-pin': PIN_CODE }
       });
       
-      setStock(stockData.success ? stockData.stock : {});
-      setRecentTransactions(recentTransactionsList);
+      const data = await response.json();
+      
+      if (data.success) {
+        setDashboardData(data.data);
+      } else {
+        throw new Error(data.message);
+      }
       
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -120,6 +64,16 @@ export function Dashboard({ showToast, onNavigate }) {
       </div>
     );
   }
+
+  if (!dashboardData) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">डाटा उपलब्ध छैन</p>
+      </div>
+    );
+  }
+
+  const { stats, stock, recentTransactions } = dashboardData;
 
   return (
     <div className="space-y-5 pb-20">
@@ -240,7 +194,7 @@ export function Dashboard({ showToast, onNavigate }) {
               <div key={idx} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
                 <div>
                   <p className="text-base font-medium text-gray-900">{transaction.customer_name}</p>
-                  <p className="text-xs text-gray-400 mt-1">{formatDate(transaction.created_at)}</p>
+                  <p className="text-xs text-gray-400 mt-1">{transaction.formatted_date || formatDate(transaction.created_at)}</p>
                 </div>
                 <div className="text-right">
                   {/* Filled Cylinder */}

@@ -28,6 +28,91 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'API is running' });
 });
 
+app.get('/api/dashboard', verifyPin, async (req, res) => {
+  try {
+    // Get all transactions in one query (with customer info)
+    const { data: transactions, error: transError } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50); // Get last 50 transactions
+    
+    if (transError) throw transError;
+    
+    // Get customers count
+    const { count: totalCustomers, error: customerError } = await supabase
+      .from('customers')
+      .select('*', { count: 'exact', head: true });
+    
+    // Get active queue count
+    const { count: activeQueue, error: queueError } = await supabase
+      .from('queue')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'waiting');
+    
+    // Get stock data
+    const { data: stockData, error: stockError } = await supabase
+      .from('stock')
+      .select('*');
+    
+    // Calculate total filled and empty
+    let totalFilled = 0;
+    let totalEmpty = 0;
+    const stock = {};
+    
+    if (stockData) {
+      stockData.forEach(item => {
+        totalFilled += item.filled_count || 0;
+        totalEmpty += item.empty_count || 0;
+        stock[item.cylinder_type] = { 
+          filled: item.filled_count, 
+          empty: item.empty_count 
+        };
+      });
+    }
+    
+    // Calculate monthly sales (current month)
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const monthlySales = transactions?.filter(t => {
+      const transDate = new Date(t.created_at);
+      return transDate.getMonth() === currentMonth && 
+             transDate.getFullYear() === currentYear &&
+             t.filled_cylinder !== 'कोही छैन';
+    }).length || 0;
+    
+    // Format recent transactions (only 5)
+    const recentTransactions = (transactions || []).slice(0, 5).map(t => {
+      const transDate = new Date(t.created_at);
+      return {
+        ...t,
+        formatted_date: transDate.toLocaleDateString('ne-NP'),
+        formatted_time: transDate.toLocaleTimeString('ne-NP', { hour: '2-digit', minute: '2-digit' })
+      };
+    });
+    
+    res.json({ 
+      success: true, 
+      data: {
+        stats: {
+          totalCustomers: totalCustomers || 0,
+          activeQueue: activeQueue || 0,
+          totalFilled,
+          totalEmpty,
+          monthlySales
+        },
+        stock,
+        recentTransactions
+      }
+    });
+    
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 // ========== CUSTOMER ROUTES ==========
 
 app.get('/api/customers', verifyPin, async (req, res) => {
