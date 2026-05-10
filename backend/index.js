@@ -120,7 +120,7 @@ app.get('/api/customers', verifyPin, async (req, res) => {
     const { search } = req.query;
     let query = supabase.from('customers').select('*');
     if (search && search.trim() !== '') {
-      query = query.ilike('name', `%${search}%`);
+       query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
     }
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw error;

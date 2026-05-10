@@ -62,9 +62,16 @@ function CustomerHistory({ showToast }) {
     }
   };
 
-  const filteredCustomers = customers.filter(c =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ✅ FIXED: Search by name OR phone number
+  const filteredCustomers = customers.filter(c => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const nameMatch = c.name.toLowerCase().includes(searchLower);
+    const phoneMatch = c.phone && c.phone.includes(searchTerm);
+    
+    return nameMatch || phoneMatch;
+  });
 
   const viewHistory = async (customer) => {
     setLoading(true);
@@ -213,66 +220,68 @@ function CustomerHistory({ showToast }) {
   }
 
   return (
-  <div className='space-y-5'> 
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-      <div className="p-4 bg-gradient-to-r from-blue-700 to-blue-500 border-b">
-        <h2 className="text-2xl font-bold text-white">ग्राहक इतिहास</h2>
-        <p className="text-blue-50 text-base mt-1">ग्राहक खोज्नुहोस् र लेनदेन हेर्नुहोस्</p>
-      </div>
-
-      <div className="p-6">
-        <div className="relative mb-6">
-          <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="ग्राहकको नाम लेख्नुहोस्..."
-            className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium"
-          />
+    <div className='space-y-5'> 
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="p-4 bg-gradient-to-r from-blue-700 to-blue-500 border-b">
+          <h2 className="text-2xl font-bold text-white">ग्राहक इतिहास</h2>
+          <p className="text-blue-50 text-base mt-1">ग्राहक खोज्नुहोस् र लेनदेन हेर्नुहोस्</p>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="p-6">
+          <div className="relative mb-6">
+            <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="नाम वा फोन नम्बरले खोज्नुहोस्..."
+              className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium"
+            />
           </div>
-        ) : filteredCustomers.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <IconAlertCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">कुनै ग्राहक छैन</p>
-          </div>
-        ) : (
-          <div className="space-y-3 max-h-[500px] overflow-y-auto">
-            {filteredCustomers.map(customer => (
-              <div
-                key={customer.id}
-                onClick={() => viewHistory(customer)}
-                className="flex items-center justify-between p-5 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors group border-2 border-transparent hover:border-blue-200"
-              >
-                <div>
-                  <p className="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition-colors">
-                    {customer.name}
-                  </p>
-                  <p className="text-base text-gray-600 mt-1 font-medium">{customer.phone || 'नम्बर छैन'}</p>
+
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : filteredCustomers.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <IconAlertCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium">कुनै ग्राहक छैन</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[500px] overflow-y-auto">
+              {filteredCustomers.map(customer => (
+                <div
+                  key={customer.id}
+                  onClick={() => viewHistory(customer)}
+                  className="flex items-center justify-between p-5 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors group border-2 border-transparent hover:border-blue-200"
+                >
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition-colors">
+                      {customer.name}
+                    </p>
+                    <p className="text-base text-gray-600 mt-1 font-medium">
+                      {customer.phone ? `📱 ${customer.phone}` : 'नम्बर छैन'}
+                    </p>
+                  </div>
+                  {customer.phone && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        makePhoneCall(customer.phone);
+                      }}
+                      className="p-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+                    >
+                      <IconPhone className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
-                {customer.phone && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      makePhoneCall(customer.phone);
-                    }}
-                    className="p-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
-                  >
-                    <IconPhone className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
-  </div>
   );
 }
 

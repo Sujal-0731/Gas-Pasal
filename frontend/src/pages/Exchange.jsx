@@ -201,7 +201,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="नाम टाइप गर्नुहोस्..."
+                placeholder="नाम वा फोन नम्बरले खोज्नुहोस्..."
                 className="w-full pl-11 pr-4 py-3 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-semibold shadow-sm"
                 disabled={!!queueCustomer}
               />
