@@ -4,11 +4,12 @@ const jwt = require('jsonwebtoken');
 const supabase = require('../config/database');
 const logger = require('../utils/logger');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
-const TOKEN_EXPIRY = '7d';
+const JWT_SECRET = process.env.JWT_SECRET;
 
+// Generate token WITHOUT expiration (never expires)
 const generateToken = (userId, username, role) => {
-  return jwt.sign({ userId, username, role }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  return jwt.sign({ userId, username, role }, JWT_SECRET);
+  // No expiresIn - token never expires
 };
 
 const login = async (req, res) => {
@@ -48,7 +49,14 @@ const login = async (req, res) => {
     
     res.json({
       success: true,
-      data: { token, user: { id: user.id, username: user.username, role: user.role } },
+      data: { 
+        token, 
+        user: { 
+          id: user.id, 
+          username: user.username, 
+          role: user.role 
+        } 
+      },
       message: 'Login successful'
     });
     
@@ -68,6 +76,7 @@ const authenticate = async (req, res, next) => {
   const token = authHeader.substring(7);
   
   try {
+    // Verify token (checks signature, but NOT expiration)
     const decoded = jwt.verify(token, JWT_SECRET);
     
     const { data: user, error } = await supabase
@@ -77,13 +86,13 @@ const authenticate = async (req, res, next) => {
       .single();
     
     if (error || !user || !user.is_active) {
-      return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+      return res.status(401).json({ success: false, message: 'Invalid token' });
     }
     
     req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    return res.status(401).json({ success: false, message: 'Invalid token' });
   }
 };
 
