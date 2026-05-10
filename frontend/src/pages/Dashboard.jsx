@@ -97,7 +97,7 @@ export function Dashboard({ showToast, onNavigate }) {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-white">{t('dashboard', language)}</h1>
-            <p className="text-blue-100 text-base mt-1">{t('welcome', language)} Anam Store {t('to', language)}</p>
+            <p className="text-blue-100 text-base mt-1">{t('welcome', language)}</p>
           </div>
         </div>
       </div>
