@@ -78,3 +78,38 @@
 .animate-bounce-in {
   animation: bounceIn 0.3s ease-out;
 }
+
+/* Additional styles for better visibility */
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg;
+}
+
+.btn-secondary {
+  @apply bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-xl transition-all duration-200;
+}
+
+.btn-danger {
+  @apply bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200;
+}
+
+/* Card hover effect */
+.card-interactive {
+  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer;
+}
+
+/* Status badges */
+.badge-success {
+  @apply bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold;
+}
+
+.badge-warning {
+  @apply bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-semibold;
+}
+
+.badge-danger {
+  @apply bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-semibold;
+}
+
+.badge-info {
+  @apply bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold;
+}

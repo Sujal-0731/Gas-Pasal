@@ -1,3 +1,4 @@
+// App.jsx - Fixed version
 import React, { useState, useEffect } from 'react';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
@@ -8,12 +9,10 @@ import DealerRefill from './pages/DealerRefill';
 import RefillHistory from './pages/RefillHistory';
 import StockSummary from './pages/StockSummary';
 import Queue from './pages/Queue';
-import AdminPanel from './pages/AdminPanel';  // ← ADD THIS IMPORT
+import AdminPanel from './pages/AdminPanel';
 import Login from './pages/Login';
 import { Toast } from './components/ui/Toast';
-import { getAuthHeader } from './utils/api';
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { LanguageProvider } from './context/LanguageContext';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -21,6 +20,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [queueCustomer, setQueueCustomer] = useState(null);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -51,11 +51,21 @@ function App() {
     setIsAuthenticated(false);
     setUser(null);
     setActiveTab('dashboard');
+    setQueueCustomer(null);
     showToast('लगआउट भयो', 'success');
   };
 
   const handleNavigate = (tab) => {
     setActiveTab(tab);
+  };
+
+  const handleQueueSelect = (item) => {
+    setQueueCustomer(item);
+    setActiveTab('exchange');
+  };
+
+  const handleClearQueueCustomer = () => {
+    setQueueCustomer(null);
   };
 
   if (loading) {
@@ -69,36 +79,67 @@ function App() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} showToast={showToast} />;
-  }
-
+  // Wrap EVERYTHING in LanguageProvider
   return (
-    <>
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      
-      <MainLayout 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
-        onLogout={handleLogout}
-        user={user}
-      >
-        {activeTab === 'dashboard' && <Dashboard showToast={showToast} onNavigate={handleNavigate} />}
-        {activeTab === 'exchange' && <Exchange showToast={showToast} />}
-        {activeTab === 'newcustomer' && <NewCustomer showToast={showToast} />}
-        {activeTab === 'customers' && <CustomerHistory showToast={showToast} />}
-        {activeTab === 'queue' && <Queue 
-          showToast={showToast} 
-          onSelectCustomerFromQueue={(item) => {
-            setActiveTab('exchange');
-          }} 
-        />}
-        {activeTab === 'dealer' && <DealerRefill showToast={showToast} />}
-        {activeTab === 'refillhistory' && <RefillHistory />}
-        {activeTab === 'stock' && <StockSummary />}
-        {activeTab === 'admin' && <AdminPanel showToast={showToast} user={user} />}  {/* ← ADD THIS LINE */}
-      </MainLayout>
-    </>
+    <LanguageProvider>
+      {!isAuthenticated ? (
+        <Login onLogin={handleLogin} showToast={showToast} />
+      ) : (
+        <>
+          {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+          
+          <MainLayout 
+            activeTab={activeTab} 
+            onTabChange={setActiveTab} 
+            onLogout={handleLogout}
+            user={user}
+          >
+            {activeTab === 'dashboard' && (
+              <Dashboard showToast={showToast} onNavigate={handleNavigate} />
+            )}
+            
+            {activeTab === 'exchange' && (
+              <Exchange 
+                showToast={showToast} 
+                queueCustomer={queueCustomer}
+                onClearQueueCustomer={handleClearQueueCustomer}
+              />
+            )}
+            
+            {activeTab === 'newcustomer' && (
+              <NewCustomer showToast={showToast} />
+            )}
+            
+            {activeTab === 'customers' && (
+              <CustomerHistory showToast={showToast} user={user} />
+            )}
+            
+            {activeTab === 'queue' && (
+              <Queue 
+                showToast={showToast} 
+                onSelectCustomerFromQueue={handleQueueSelect}
+              />
+            )}
+            
+            {activeTab === 'dealer' && (
+              <DealerRefill showToast={showToast} />
+            )}
+            
+            {activeTab === 'refillhistory' && (
+              <RefillHistory />
+            )}
+            
+            {activeTab === 'stock' && (
+              <StockSummary />
+            )}
+            
+            {activeTab === 'admin' && (
+              <AdminPanel showToast={showToast} user={user} />
+            )}
+          </MainLayout>
+        </>
+      )}
+    </LanguageProvider>
   );
 }
 

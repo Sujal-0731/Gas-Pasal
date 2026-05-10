@@ -6,27 +6,56 @@ import {
   IconUsers,
   IconQueue,
   IconCheck,
-  IconX
+  IconX,
+  IconRefresh
 } from '../components/icons';
 import { getAuthHeader } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
+import { t } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
-const cylinderOptions = ['लोकप्रिय', 'सुगम', 'एभरेस्ट', 'अन्य / Other', 'कोही छैन'];
+
+// Actual values that go to backend (always Nepali)
+const cylinderValues = {
+  lokpriya: 'लोकप्रिय',
+  sugam: 'सुगम',
+  everest: 'एभरेस्ट',
+  other: 'अन्य / Other',
+  none: 'कोही छैन'
+};
 
 function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
+  const { language } = useLanguage();
+  
+  // Display options based on language
+  const cylinderDisplayOptions = [
+    { value: cylinderValues.lokpriya, label: t('lokpriya', language) },
+    { value: cylinderValues.sugam, label: t('sugam', language) },
+    { value: cylinderValues.everest, label: t('everest', language) },
+    { value: cylinderValues.other, label: t('other', language) },
+    { value: cylinderValues.none, label: t('none', language) }
+  ];
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [emptyCylinder, setEmptyCylinder] = useState('लोकप्रिय');
-  const [filledCylinder, setFilledCylinder] = useState('लोकप्रिय');
+  const [emptyCylinder, setEmptyCylinder] = useState(cylinderValues.lokpriya);
+  const [filledCylinder, setFilledCylinder] = useState(cylinderValues.lokpriya);
   const [remarks, setRemarks] = useState('');
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const searchTimeoutRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const showToastRef = useRef(showToast);
 
+  // Update showToast ref
+  useEffect(() => {
+    showToastRef.current = showToast;
+  }, [showToast]);
+
+  // Handle queue customer selection
   useEffect(() => {
     if (queueCustomer) {
-      // ✅ Fixed: Store complete customer info including queueId
       setSelectedCustomer({ 
         name: queueCustomer.customer_name,
         id: queueCustomer.customer_id,
@@ -34,10 +63,11 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
       });
       setSearchTerm(queueCustomer.customer_name);
       setEmptyCylinder(queueCustomer.empty_cylinder);
-      showToast(`क्यूबाट: ${queueCustomer.customer_name}`, 'success');
+      showToastRef.current(`${t('fromQueue', language)}: ${queueCustomer.customer_name}`, 'success');
     }
-  }, [queueCustomer, showToast]);
+  }, [queueCustomer, language]);
 
+  // Debounced search
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -75,7 +105,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
       }
     } catch (error) {
       console.error('Search error:', error);
-      showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
+      showToastRef.current(t('networkError', language), 'error');
       setSearchResults([]);
     } finally {
       setLoading(false);
@@ -88,18 +118,29 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
     setSearchTerm(customer.name);
     setSearchResults([]);
     setSearching(false);
+    setTimeout(() => {
+      const remarksInput = document.getElementById('remarks-input');
+      if (remarksInput) remarksInput.focus();
+    }, 100);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    setSearchResults([]);
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
   };
 
   const recordTransaction = async () => {
     if (!selectedCustomer) {
-      showToast('कृपया पहिले ग्राहक खोज्नुहोस्', 'error');
+      showToastRef.current(t('selectCustomerFirst', language), 'error');
       return;
     }
 
-    // ✅ Added: Validate at least one cylinder is selected
-    if ((!emptyCylinder || emptyCylinder === 'कोही छैन') && 
-        (!filledCylinder || filledCylinder === 'कोही छैन')) {
-      showToast('कृपया कम्तीमा एउटा सिलिन्डर चयन गर्नुहोस्', 'error');
+    if ((!emptyCylinder || emptyCylinder === cylinderValues.none) && 
+        (!filledCylinder || filledCylinder === cylinderValues.none)) {
+      showToastRef.current(t('selectAtLeastOneCylinder', language), 'error');
       return;
     }
 
@@ -113,43 +154,53 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
         },
         body: JSON.stringify({
           customerName: selectedCustomer.name,
-          emptyCylinder,
-          filledCylinder,
+          emptyCylinder: emptyCylinder,  // Already in Nepali
+          filledCylinder: filledCylinder, // Already in Nepali
           remarks,
-          queueId: queueCustomer?.id || null  // ✅ Fixed: Use correct property
+          queueId: queueCustomer?.id || null
         })
       });
       
       const data = await res.json();
       
-      if (res.ok && data.success) {
-        showToast('लेनदेन सफलतापूर्वक रेकर्ड गरियो', 'success');
+      if (!res.ok) {
+        showToastRef.current(data.message || t('transactionFailed', language), 'error');
+        setLoading(false);
+        return;
+      }
+      
+      if (data.success) {
+        showToastRef.current(t('transactionSuccess', language), 'success');
         setRemarks('');
         
-        // ✅ Fixed: Clear queue customer after successful transaction
         if (queueCustomer && onClearQueueCustomer) {
           onClearQueueCustomer();
         }
         
-        // Reset form for new transaction
         if (!queueCustomer) {
           setSelectedCustomer(null);
           setSearchTerm('');
           setSearchResults([]);
         }
         
-        // ✅ Reset cylinder selections
-        setEmptyCylinder('लोकप्रिय');
-        setFilledCylinder('लोकप्रिय');
+        setEmptyCylinder(cylinderValues.lokpriya);
+        setFilledCylinder(cylinderValues.lokpriya);
         
       } else {
-        showToast(data.message || 'लेनदेन रेकर्ड गर्न असफल', 'error');
+        showToastRef.current(data.message || t('transactionFailed', language), 'error');
       }
     } catch (error) {
       console.error('Transaction error:', error);
-      showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
+      showToastRef.current(t('networkError', language), 'error');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  // Get display label for a value
+  const getDisplayLabel = (value) => {
+    const option = cylinderDisplayOptions.find(opt => opt.value === value);
+    return option ? option.label : value;
   };
 
   const renderSearchStatus = () => {
@@ -159,7 +210,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
           <div className="flex items-center justify-center gap-2">
             <div className="w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
             <span className="text-base font-semibold text-blue-700">
-              {searchTerm.length >= 2 ? 'ग्राहक खोज्दै...' : 'कृपया कम्तीमा २ अक्षर टाइप गर्नुहोस्'}
+              {searchTerm.length >= 2 ? t('searching', language) : t('typeMinChars', language)}
             </span>
           </div>
         </div>
@@ -168,12 +219,12 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
     
     if (searchTerm.length >= 2 && searchResults.length === 0 && !searching && !loading) {
       return (
-        <div className="text-center py-4 bg-yellow-50 rounded-xl border border-yellow-200 mt-3">
+        <div className="text-center py-6 bg-yellow-50 rounded-xl border border-yellow-200 mt-3">
           <p className="text-base font-bold text-yellow-700">
-            कुनै ग्राहक फेला परेन
+            {t('noCustomerFound', language)}
           </p>
           <p className="text-sm text-yellow-600 mt-1">
-            नयाँ ग्राहक थप्नको लागि "ग्राहक थप्नुहोस्" मा जानुहोस्
+            {t('addCustomerHint', language)}
           </p>
         </div>
       );
@@ -183,73 +234,88 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        {/* Header Section */}
-        <div className="p-4 bg-gradient-to-r from-blue-700 to-blue-500 border-b">
-          <h2 className="text-2xl font-bold text-white">लेनदेन</h2>
-          <p className="text-blue-50 text-base mt-1">सिलिन्डर विवरण भर्नुहोस्</p>
+    <div className="space-y-5 pb-24">
+      {/* Page Header */}
+      <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <IconQueue className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">{t('exchange', language)}</h1>
+            <p className="text-blue-100 text-base mt-1">{t('exchangeDesc', language)}</p>
+          </div>
         </div>
+      </div>
 
-        <div className="p-5">
-          {/* Active Selection Display */}
-          {(queueCustomer || selectedCustomer) && (
-            <div className={`mb-5 p-4 rounded-xl border shadow-sm ${
-              queueCustomer ? 'bg-purple-50 border-purple-200' : 'bg-blue-50 border-blue-200'
-            }`}>
-              <div className={`flex items-center gap-2 mb-1 ${queueCustomer ? 'text-purple-700' : 'text-blue-700'}`}>
-                {queueCustomer ? <IconQueue className="w-5 h-5" /> : <IconUsers className="w-5 h-5" />}
-                <span className="text-sm font-bold uppercase tracking-wide">
-                  {queueCustomer ? 'क्यूबाट छानिएको' : 'छानिएको ग्राहक'}
-                </span>
-              </div>
-              <p className="text-xl font-bold text-gray-900">{selectedCustomer?.name}</p>
-              {queueCustomer && (
-                <p className="text-base text-purple-800 mt-1 font-semibold">
-                  ल्याएको सिलिन्डर: {queueCustomer.empty_cylinder}
-                </p>
-              )}
+      {/* Main Form Card */}
+      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+        {(queueCustomer || selectedCustomer) && (
+          <div className={`p-5 border-b ${queueCustomer ? 'bg-purple-50 border-purple-200' : 'bg-blue-50 border-blue-200'}`}>
+            <div className={`flex items-center gap-2 mb-2 ${queueCustomer ? 'text-purple-700' : 'text-blue-700'}`}>
+              {queueCustomer ? <IconQueue className="w-5 h-5" /> : <IconUsers className="w-5 h-5" />}
+              <span className="text-sm font-bold uppercase tracking-wide">
+                {queueCustomer ? t('selectedFromQueue', language) : t('selectedCustomer', language)}
+              </span>
             </div>
-          )}
+            <p className="text-xl font-bold text-gray-900">{selectedCustomer?.name}</p>
+            {queueCustomer && (
+              <p className="text-base text-purple-800 mt-1 font-semibold">
+                {t('broughtCylinder', language)}: {queueCustomer.empty_cylinder}
+              </p>
+            )}
+          </div>
+        )}
 
+        <div className="p-6">
           {/* Search Section */}
           <div className="mb-6">
-            <label className="block text-lg font-bold text-gray-800 mb-2">
-              ग्राहक खोज्नुहोस्
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              {t('searchCustomer', language)}
             </label>
             <div className="relative">
               <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
+                ref={searchInputRef}
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="नाम वा फोन नम्बरले खोज्नुहोस्..."
-                className="w-full pl-11 pr-4 py-3 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-semibold shadow-sm"
+                placeholder={t('searchByNameOrPhone', language)}
+                className="w-full pl-11 pr-12 py-3 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-semibold shadow-sm"
                 disabled={!!queueCustomer}
               />
+              {searchTerm && !queueCustomer && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <IconX className="w-5 h-5" />
+                </button>
+              )}
             </div>
             
-            {!queueCustomer && (
-              <>
-                {renderSearchStatus()}
-                
-                {searchResults.length > 0 && !searching && !loading && (
-                  <div className="mt-2 space-y-2 max-h-72 overflow-y-auto p-2 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                    {searchResults.map(customer => (
-                      <div
-                        key={customer.id}
-                        onClick={() => selectCustomer(customer)}
-                        className="p-3 bg-white rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-400 border border-transparent transition-all shadow-sm"
-                      >
-                        <p className="text-lg font-bold text-gray-900">{customer.name}</p>
-                        <p className="text-base text-gray-600 font-semibold mt-0.5">
-                          {customer.phone ? `📱 ${customer.phone}` : 'मोबाइल नम्बर छैन'}
-                        </p>
-                      </div>
-                    ))}
+            {!queueCustomer && renderSearchStatus()}
+            
+            {!queueCustomer && searchResults.length > 0 && !searching && !loading && (
+              <div className="mt-3 space-y-2 max-h-72 overflow-y-auto p-2 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                {searchResults.map(customer => (
+                  <div
+                    key={customer.id}
+                    onClick={() => selectCustomer(customer)}
+                    className="p-3 bg-white rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-400 border border-transparent transition-all shadow-sm"
+                  >
+                    <p className="text-lg font-bold text-gray-900">{customer.name}</p>
+                    <p className="text-base text-gray-600 font-semibold mt-0.5">
+                      {customer.phone ? `📱 ${customer.phone}` : t('noPhone', language)}
+                    </p>
+                    {customer.address && (
+                      <p className="text-sm text-gray-400 mt-0.5">
+                        📍 {customer.address}
+                      </p>
+                    )}
                   </div>
-                )}
-              </>
+                ))}
+              </div>
             )}
           </div>
 
@@ -257,19 +323,20 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
 
           {/* Cylinder Selection Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-            <div className="p-4 rounded-xl border border-red-100 shadow-sm">
-              <label className="block text-base font-bold mb-2 flex items-center gap-2">
+            <div className="p-4 rounded-xl border border-red-100 shadow-sm bg-red-50/30">
+              <label className="block text-base font-bold mb-2 flex items-center gap-2 text-red-800">
                 <IconEmptyCylinder className="w-5 h-5" />
-                १. खाली सिलिन्डर (ल्याएको)
+                {t('emptyCylinderLabel', language)}
               </label>
               <div className="relative">
                 <select
                   value={emptyCylinder}
                   onChange={(e) => setEmptyCylinder(e.target.value)}
                   className="w-full p-3 text-lg font-bold border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-colors appearance-none bg-white shadow-sm pr-12"
+                  disabled={!!queueCustomer}
                 >
-                  {cylinderOptions.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
+                  {cylinderDisplayOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -279,14 +346,14 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
                 </div>
               </div>
               <p className="text-xs font-semibold text-red-600 mt-2 italic text-center">
-                नयाँ ग्राहक भए "कोही छैन" छान्नुहोस्
+                {t('newCustomerHint', language)}
               </p>
             </div>
 
-            <div className="p-4 rounded-xl border border-green-100 shadow-sm">
-              <label className="block text-base font-bold mb-2 flex items-center gap-2">
+            <div className="p-4 rounded-xl border border-green-100 shadow-sm bg-green-50/30">
+              <label className="block text-base font-bold mb-2 flex items-center gap-2 text-green-800">
                 <IconFilledCylinder className="w-5 h-5" />
-                २. भरिएको सिलिन्डर (दिने)
+                {t('filledCylinderLabel', language)}
               </label>
               <div className="relative">
                 <select
@@ -294,8 +361,8 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
                   onChange={(e) => setFilledCylinder(e.target.value)}
                   className="w-full p-3 text-lg font-bold border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-colors appearance-none bg-white shadow-sm pr-12"
                 >
-                  {cylinderOptions.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
+                  {cylinderDisplayOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -305,21 +372,22 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
                 </div>
               </div>
               <p className="text-xs font-semibold text-green-600 mt-2 italic text-center">
-                फिर्ता मात्र भए "कोही छैन" छान्नुहोस्
+                {t('returnOnlyHint', language)}
               </p>
             </div>
           </div>
 
           {/* Remarks Section */}
           <div className="mb-6">
-            <label className="block text-lg font-bold text-gray-700 mb-2">
-              कैफियत (हिसाब-किताब / अन्य)
+            <label className="block text-base font-semibold text-gray-700 mb-2">
+              {t('remarks', language)}
             </label>
             <textarea
+              id="remarks-input"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
               rows="2"
-              placeholder="जस्तै: पैसा बाँकी वा केही जानकारी..."
+              placeholder={t('remarksPlaceholder', language)}
               className="w-full p-3 text-base border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-all resize-none font-semibold bg-gray-50 shadow-inner"
             />
           </div>
@@ -333,12 +401,12 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
             {loading ? (
               <>
                 <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
-                सेभ हुँदैछ...
+                {t('saving', language)}...
               </>
             ) : (
               <>
                 <IconCheck className="w-6 h-6" />
-                लेनदेन रेकर्ड गर्नुहोस्
+                {t('recordTransaction', language)}
               </>
             )}
           </button>

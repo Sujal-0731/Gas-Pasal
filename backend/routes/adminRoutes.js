@@ -9,14 +9,17 @@ const {
   updateUser,
   resetPassword,
   deleteUser,
-  getUserStats
+  getUserStats,
 } = require('../controllers/adminController');
+
+const { updateCustomer } = require('../controllers/customerController');
+const { updateStock } = require('../controllers/stockController');
 
 // All admin routes require authentication and admin role
 router.use(authenticate);
 router.use(authorize('admin'));
 
-// User management routes
+
 router.get('/users', getAllUsers);
 router.get('/users/stats', getUserStats);
 router.get('/users/:id', getUserById);
@@ -24,5 +27,6 @@ router.post('/users', createUser);
 router.put('/users/:id', updateUser);
 router.post('/users/:id/reset-password', resetPassword);
 router.delete('/users/:id', deleteUser);
-
+router.put('/customers/:id', updateCustomer);
+router.put('/stock/:type', updateStock);
 module.exports = router;

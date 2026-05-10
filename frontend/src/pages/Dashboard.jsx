@@ -12,13 +12,17 @@ import {
   IconFilledCylinder,
   IconEmptyCylinder,
   IconReturn,
-  IconNewPurchase
+  IconNewPurchase,
+  IconDashboard
 } from '../components/icons';
 import { getAuthHeader } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
+import { t } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 export function Dashboard({ showToast, onNavigate }) {
+  const { language } = useLanguage();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,7 +47,7 @@ export function Dashboard({ showToast, onNavigate }) {
       
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      if (showToast) showToast('डाटा लोड गर्न असफल', 'error');
+      if (showToast) showToast(t('error', language), 'error');
     }
     setLoading(false);
   };
@@ -55,10 +59,10 @@ export function Dashboard({ showToast, onNavigate }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500 text-base">डाटा लोड हुँदै...</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 text-lg font-medium">{t('loading', language)}</p>
         </div>
       </div>
     );
@@ -66,8 +70,17 @@ export function Dashboard({ showToast, onNavigate }) {
 
   if (!dashboardData) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">डाटा उपलब्ध छैन</p>
+      <div className="text-center py-16">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <IconDashboard className="w-10 h-10 text-gray-400" />
+        </div>
+        <p className="text-gray-500 text-lg">{t('noData', language)}</p>
+        <button 
+          onClick={fetchDashboardData}
+          className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
+          {t('refresh', language)}
+        </button>
       </div>
     );
   }
@@ -75,177 +88,204 @@ export function Dashboard({ showToast, onNavigate }) {
   const { stats, stock, recentTransactions } = dashboardData;
 
   return (
-    <div className="space-y-5 pb-20">
+    <div className="space-y-6 pb-24">
       {/* Page Header */}
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">📊 ड्यासबोर्ड</h1>
-        <p className="text-sm text-gray-500 mt-1">वास्तविक तथ्याङ्क</p>
+      <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <IconDashboardHome className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">{t('dashboard', language)}</h1>
+            <p className="text-blue-100 text-base mt-1">{t('welcome', language)} Anam Store {t('to', language)}</p>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">कुल ग्राहक</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalCustomers}</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Total Customers */}
+        <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+              <IconUsers className="w-6 h-6 text-blue-600" />
             </div>
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <IconUsers className="w-5 h-5 text-blue-600" />
-            </div>
+            <span className="text-3xl font-bold text-gray-800">{stats.totalCustomers}</span>
           </div>
+          <p className="text-gray-600 font-medium">{t('totalCustomers', language)}</p>
         </div>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">पर्खने सूची</p>
-              <p className="text-2xl font-bold text-purple-600">{stats.activeQueue}</p>
+        {/* Active Queue */}
+        <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+              <IconQueue className="w-6 h-6 text-purple-600" />
             </div>
-            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-              <IconQueue className="w-5 h-5 text-purple-600" />
-            </div>
+            <span className="text-3xl font-bold text-gray-800">{stats.activeQueue}</span>
           </div>
+          <p className="text-gray-600 font-medium">{t('activeQueue', language)}</p>
         </div>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">भरिएको स्टक</p>
-              <p className="text-2xl font-bold text-green-600">{stats.totalFilled}</p>
+        {/* Filled Stock */}
+        <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+              <IconFilledCylinder className="w-6 h-6 text-green-600" />
             </div>
-            <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-              <IconPackage className="w-5 h-5 text-green-600" />
-            </div>
+            <span className="text-3xl font-bold text-green-700">{stats.totalFilled}</span>
           </div>
+          <p className="text-gray-600 font-medium">{t('filledStock', language)}</p>
         </div>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">खाली स्टक</p>
-              <p className="text-2xl font-bold text-red-600">{stats.totalEmpty}</p>
+        {/* Empty Stock */}
+        <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+              <IconEmptyCylinder className="w-6 h-6 text-red-500" />
             </div>
-            <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
-              <IconClock className="w-5 h-5 text-red-600" />
-            </div>
+            <span className="text-3xl font-bold text-red-600">{stats.totalEmpty}</span>
           </div>
+          <p className="text-gray-600 font-medium">{t('emptyStock', language)}</p>
         </div>
       </div>
 
       {/* Monthly Sales Card */}
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl p-4 shadow-sm">
+      <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 shadow-lg">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-white/80">यो महिनाको बिक्री</p>
-            <p className="text-3xl font-bold text-white">{stats.monthlySales}</p>
+            <p className="text-orange-100 text-sm font-medium mb-1">{t('monthlySales', language)}</p>
+            <p className="text-4xl md:text-5xl font-bold text-white">{stats.monthlySales}</p>
+            <p className="text-orange-100 text-sm mt-2">{t('cylinders', language)}</p>
           </div>
-          <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-            <IconTrendingUp className="w-6 h-6 text-white" />
+          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+            <IconTrendingUp className="w-8 h-8 text-white" />
           </div>
         </div>
       </div>
 
-      {/* Stock Overview */}
-      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">स्टक अवस्था</h3>
-          <button 
-            onClick={() => onNavigate?.('stock')}
-            className="text-sm text-blue-600 font-medium"
-          >
-            विवरण →
-          </button>
+      {/* Stock Overview Section - Using StockProgress Component */}
+      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-xl font-bold text-white">{t('stockStatus', language)}</h3>
+              <p className="text-blue-100 text-sm mt-0.5">{t('currentStockStatus', language)}</p>
+            </div>
+            <button 
+              onClick={() => onNavigate?.('stock')}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition flex items-center gap-1"
+            >
+              {t('viewDetails', language)} <span className="text-lg">→</span>
+            </button>
+          </div>
         </div>
-        
-        <StockProgress stock={stock} />
+        <div className="p-6">
+          <StockProgress stock={stock} />
+        </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Quick Action Buttons */}
+      <div className="grid grid-cols-2 gap-4">
         <button
           onClick={() => onNavigate?.('exchange')}
-          className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-medium text-base transition flex items-center justify-center gap-2"
+          className="bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-bold text-lg shadow-md transition-all active:scale-98 flex items-center justify-center gap-3"
         >
-          <IconTransaction className="w-5 h-5" />
-          नयाँ लेनदेन
+          <IconTransaction className="w-6 h-6" />
+          {t('newTransaction', language)}
         </button>
+        
         <button
           onClick={() => onNavigate?.('queue')}
-          className="bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-medium text-base transition flex items-center justify-center gap-2"
+          className="bg-purple-600 hover:bg-purple-700 text-white py-5 rounded-2xl font-bold text-lg shadow-md transition-all active:scale-98 flex items-center justify-center gap-3"
         >
-          <IconQueue className="w-5 h-5" />
-          क्यू ({stats.activeQueue})
+          <IconQueue className="w-6 h-6" />
+          {t('viewQueue', language)} ({stats.activeQueue})
         </button>
+        
         <button
           onClick={() => onNavigate?.('customers')}
-          className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-4 rounded-xl font-medium text-base transition flex items-center justify-center gap-2 col-span-2"
+          className="bg-green-600 hover:bg-green-700 text-white py-5 rounded-2xl font-bold text-lg shadow-md transition-all active:scale-98 flex items-center justify-center gap-3"
         >
-          <IconNewCustomer className="w-5 h-5 text-gray-500" />
-          नयाँ ग्राहक
+          <IconUsers className="w-6 h-6" />
+          {t('customerList', language)}
+        </button>
+        
+        <button
+          onClick={() => onNavigate?.('newcustomer')}
+          className="bg-orange-600 hover:bg-orange-700 text-white py-5 rounded-2xl font-bold text-lg shadow-md transition-all active:scale-98 flex items-center justify-center gap-3"
+        >
+          <IconNewCustomer className="w-6 h-6" />
+          {t('newCustomer', language)}
         </button>
       </div>
 
-      {/* Recent Transactions */}
-      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">हालैको लेनदेन</h3>
-          <button 
-            onClick={() => onNavigate?.('exchange')}
-            className="text-sm text-blue-600 font-medium"
-          >
-            सबै →
-          </button>
+      {/* Recent Transactions Section */}
+      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-xl font-bold text-white">{t('recentTransactions', language)}</h3>
+              <p className="text-blue-100 text-sm mt-0.5">{t('lastFiveTransactions', language)}</p>
+            </div>
+            <button 
+              onClick={() => onNavigate?.('exchange')}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition flex items-center gap-1"
+            >
+              {t('viewAll', language)} <span className="text-lg">→</span>
+            </button>
+          </div>
         </div>
         
-        {recentTransactions.length === 0 ? (
-          <div className="text-center text-gray-400 text-base py-6">
-            <IconTransaction className="w-12 h-12 mx-auto mb-2 opacity-30" />
-            कुनै लेनदेन छैन
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {recentTransactions.map((transaction, idx) => (
-              <div key={idx} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
-                <div className="flex-1">
-                  <p className="text-base font-medium text-gray-900">{transaction.customer_name}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {transaction.formatted_date || formatDate(transaction.created_at)}
-                  </p>
+        <div className="p-4">
+          {recentTransactions.length === 0 ? (
+            <div className="text-center py-12">
+              <IconTransaction className="w-16 h-16 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 text-lg">{t('noTransactions', language)}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentTransactions.map((transaction, idx) => (
+                <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                  <div className="flex-1">
+                    <p className="text-lg font-semibold text-gray-800">{transaction.customer_name}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {transaction.formatted_date || formatDate(transaction.created_at)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {transaction.filled_cylinder !== 'कोही छैन' ? (
+                      <div className="flex items-center gap-2 justify-end">
+                        <IconFilledCylinder className="w-5 h-5 text-green-600" />
+                        <span className="text-base font-semibold text-green-700">
+                          {transaction.filled_cylinder}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 justify-end">
+                        <IconReturn className="w-5 h-5 text-blue-600" />
+                        <span className="text-base font-semibold text-blue-600">{t('return', language)}</span>
+                      </div>
+                    )}
+                    
+                    {transaction.empty_cylinder !== 'कोही छैन' ? (
+                      <div className="flex items-center gap-2 justify-end mt-1">
+                        <IconEmptyCylinder className="w-5 h-5 text-red-500" />
+                        <span className="text-sm text-red-600 font-medium">
+                          {transaction.empty_cylinder}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 justify-end mt-1">
+                        <IconNewPurchase className="w-5 h-5 text-orange-500" />
+                        <span className="text-sm text-orange-600 font-medium">{t('newPurchase', language)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="text-right">
-                  {transaction.filled_cylinder !== 'कोही छैन' ? (
-                    <div className="flex items-center gap-1 justify-end">
-                      <IconFilledCylinder className="w-4 h-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-600">
-                        {transaction.filled_cylinder}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 justify-end">
-                      <IconReturn className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-600">फिर्ता</span>
-                    </div>
-                  )}
-                  
-                  {transaction.empty_cylinder !== 'कोही छैन' ? (
-                    <div className="flex items-center gap-1 justify-end mt-1">
-                      <IconEmptyCylinder className="w-4 h-4 text-red-500" />
-                      <span className="text-xs text-red-500 font-medium">
-                        {transaction.empty_cylinder}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 justify-end mt-1">
-                      <IconNewPurchase className="w-4 h-4 text-orange-500" />
-                      <span className="text-xs text-orange-500 font-medium">नयाँ खरिद</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

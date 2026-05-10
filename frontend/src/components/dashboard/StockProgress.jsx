@@ -1,23 +1,61 @@
 import React from 'react';
+import { useLanguage } from '../../context/LanguageContext';
+import { t } from '../../utils/translations';
 import { IconLokpriya, IconSugam, IconEverest, IconOther } from '../icons';
 
 export function StockProgress({ stock }) {
-  const stockOrder = ['लोकप्रिय', 'सुगम', 'एभरेस्ट', 'अन्य / Other'];
+  const { language } = useLanguage();
   
-  const getLogo = (type) => {
-    if (type.includes('लोकप्रिय')) return <IconLokpriya />;
-    if (type.includes('सुगम')) return <IconSugam />;
-    if (type.includes('एभरेस्ट')) return <IconEverest />;
+  // ✅ Add null check - if stock is null or undefined, show loading or empty state
+  if (!stock) {
+    return (
+      <div className="text-center text-gray-400 text-base py-4">
+        {t('loading', language)}...
+      </div>
+    );
+  }
+  
+  // Define the mapping between display names and actual stock keys
+  const stockMapping = [
+    { 
+      displayName: t('lokpriya', language),
+      stockKey: 'लोकप्रिय',
+      icon: IconLokpriya
+    },
+    { 
+      displayName: t('sugam', language),
+      stockKey: 'सुगम',
+      icon: IconSugam
+    },
+    { 
+      displayName: t('everest', language),
+      stockKey: 'एभरेस्ट',
+      icon: IconEverest
+    },
+    { 
+      displayName: t('other', language),
+      stockKey: 'अन्य / Other',
+      icon: IconOther
+    }
+  ];
+  
+  const getLogo = (stockKey) => {
+    const mapping = stockMapping.find(m => m.stockKey === stockKey);
+    if (mapping) {
+      const Icon = mapping.icon;
+      return <Icon />;
+    }
     return <IconOther />;
   };
 
-  const stockItems = stockOrder
-    .filter(type => stock[type])
-    .map(type => ({
-      name: type,
-      filled: stock[type]?.filled || 0,
-      empty: stock[type]?.empty || 0,
-      total: (stock[type]?.filled || 0) + (stock[type]?.empty || 0),
+  const stockItems = stockMapping
+    .filter(mapping => stock[mapping.stockKey])  // ✅ Now stock is guaranteed to exist
+    .map(mapping => ({
+      displayName: mapping.displayName,
+      stockKey: mapping.stockKey,
+      filled: stock[mapping.stockKey]?.filled || 0,
+      empty: stock[mapping.stockKey]?.empty || 0,
+      total: (stock[mapping.stockKey]?.filled || 0) + (stock[mapping.stockKey]?.empty || 0),
     }));
 
   const grandTotalFilled = stockItems.reduce((sum, item) => sum + item.filled, 0);
@@ -33,6 +71,14 @@ export function StockProgress({ stock }) {
     return 'bg-green-500';
   };
 
+  if (stockItems.length === 0) {
+    return (
+      <div className="text-center text-gray-400 text-base py-4">
+        {t('noData', language)}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       {stockItems.map((item) => {
@@ -41,15 +87,19 @@ export function StockProgress({ stock }) {
         const filledColor = getFilledColor(item.filled, item.total);
         
         return (
-          <div key={item.name} className="space-y-2">
+          <div key={item.stockKey} className="space-y-2">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                {getLogo(item.name)}
-                <span className="text-base font-medium text-gray-700">{item.name}</span>
+                {getLogo(item.stockKey)}
+                <span className="text-base font-medium text-gray-700">{item.displayName}</span>
               </div>
               <div className="flex gap-4 text-sm">
-                <span className="text-green-600 font-medium">भरिएको: {item.filled}</span>
-                <span className="text-red-500 font-medium">खाली: {item.empty}</span>
+                <span className="text-green-600 font-medium">
+                  {t('filled', language)}: {item.filled}
+                </span>
+                <span className="text-red-500 font-medium">
+                  {t('empty', language)}: {item.empty}
+                </span>
               </div>
             </div>
             
@@ -65,8 +115,8 @@ export function StockProgress({ stock }) {
             </div>
             
             <div className="flex justify-between text-sm text-gray-400">
-              <span>{Math.round(filledPercent)}% भरिएको</span>
-              <span>{Math.round(emptyPercent)}% खाली</span>
+              <span>{Math.round(filledPercent)}% {t('filled', language)}</span>
+              <span>{Math.round(emptyPercent)}% {t('empty', language)}</span>
             </div>
           </div>
         );
@@ -76,25 +126,23 @@ export function StockProgress({ stock }) {
         <div className="mt-5 pt-4 border-t border-gray-200">
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-base font-semibold text-gray-700">📊 जम्मा स्टक</span>
+              <span className="text-base font-semibold text-gray-700">
+                📊 {t('totalStock', language)}
+              </span>
               <span className="text-xl font-bold text-gray-900">{grandTotal}</span>
             </div>
             <div className="flex justify-between text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-gray-600">भरिएको: {grandTotalFilled}</span>
+                <span className="text-gray-600">{t('filled', language)}: {grandTotalFilled}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                <span className="text-gray-600">खाली: {grandTotalEmpty}</span>
+                <span className="text-gray-600">{t('empty', language)}: {grandTotalEmpty}</span>
               </div>
             </div>
           </div>
         </div>
-      )}
-      
-      {stockItems.length === 0 && (
-        <div className="text-center text-gray-400 text-base py-4">स्टक डाटा छैन</div>
       )}
     </div>
   );

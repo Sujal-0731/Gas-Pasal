@@ -12,22 +12,42 @@ import {
   IconEmptyCylinder
 } from '../components/icons';
 import { getAuthHeader } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
+import { t } from '../utils/translations';
+import { getCylinderOptions, translateCylinder } from '../utils/cylinderTranslator';
 
 const API_URL = import.meta.env.VITE_API_URL;
-const cylinderOptions = ['लोकप्रिय', 'सुगम', 'एभरेस्ट', 'अन्य / Other'];
 
 function Queue({ showToast, onSelectCustomerFromQueue }) {
+  const { language } = useLanguage();
+  
+  // Get translated cylinder options
+  const cylinderOptions = getCylinderOptions(language);
+  // Keep the actual values for API calls
+  const cylinderValues = {
+    lokpriya: 'लोकप्रिय',
+    sugam: 'सुगम',
+    everest: 'एभरेस्ट',
+    other: 'अन्य / Other'
+  };
+  
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [emptyCylinder, setEmptyCylinder] = useState('लोकप्रिय');
+  const [emptyCylinder, setEmptyCylinder] = useState(cylinderValues.lokpriya);
   const [notes, setNotes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const modalSearchRef = useRef(null);
+  const showToastRef = useRef(showToast);
+
+  // Update showToast ref
+  useEffect(() => {
+    showToastRef.current = showToast;
+  }, [showToast]);
 
   useEffect(() => {
     loadQueue();
@@ -46,7 +66,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
       }
     } catch (error) {
       console.error('Error loading queue:', error);
-      if (showToast) showToast('क्यू लोड गर्न असफल', 'error');
+      if (showToastRef.current) showToastRef.current(t('error', language), 'error');
     }
     setLoading(false);
   };
@@ -67,7 +87,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
 
   const addToQueue = async () => {
     if (!selectedCustomer) {
-      if (showToast) showToast('कृपया ग्राहक चयन गर्नुहोस्', 'error');
+      if (showToastRef.current) showToastRef.current(t('selectCustomerFirst', language), 'error');
       return;
     }
 
@@ -82,31 +102,31 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
         body: JSON.stringify({
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
-          emptyCylinder,
+          emptyCylinder: emptyCylinder, // Already in Nepali
           notes
         })
       });
       const data = await res.json();
       if (data.success) {
-        if (showToast) showToast('ग्राहक क्यूमा थपियो', 'success');
+        if (showToastRef.current) showToastRef.current(t('addedToQueueSuccess', language), 'success');
         setShowAddModal(false);
         setSelectedCustomer(null);
-        setEmptyCylinder('लोकप्रिय');
+        setEmptyCylinder(cylinderValues.lokpriya);
         setNotes('');
         setSearchTerm('');
         await loadQueue();
       } else {
-        if (showToast) showToast(data.message, 'error');
+        if (showToastRef.current) showToastRef.current(data.message, 'error');
       }
     } catch (error) {
       console.error('Add to queue error:', error);
-      if (showToast) showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
+      if (showToastRef.current) showToastRef.current(t('networkError', language), 'error');
     }
     setIsAdding(false);
   };
 
   const removeFromQueue = async (queueId, customerName) => {
-    if (window.confirm(`के तपाईं ${customerName} लाई क्यूबाट हटाउन चाहनुहुन्छ?`)) {
+    if (window.confirm(`${customerName} ${t('confirmRemove', language)}`)) {
       setLoading(true);
       try {
         const res = await fetch(`${API_URL}/queue/${queueId}`, {
@@ -115,15 +135,15 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
         });
         const data = await res.json();
         if (data.success) {
-          if (showToast) showToast(`${customerName} क्यूबाट हटाइयो`, 'success');
+          if (showToastRef.current) showToastRef.current(`${customerName} ${t('removedFromQueue', language)}`, 'success');
           setQueue(prevQueue => prevQueue.filter(q => q.id !== queueId));
           await loadQueue();
         } else {
-          if (showToast) showToast(data.message, 'error');
+          if (showToastRef.current) showToastRef.current(data.message, 'error');
         }
       } catch (error) {
         console.error('Remove from queue error:', error);
-        if (showToast) showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
+        if (showToastRef.current) showToastRef.current(t('networkError', language), 'error');
       }
       setLoading(false);
     }
@@ -131,10 +151,9 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
 
   const handleSelectFromQueue = (item) => {
     setProcessingId(item.id);
-    // Remove from UI immediately
     setQueue(prevQueue => prevQueue.filter(q => q.id !== item.id));
     onSelectCustomerFromQueue(item);
-    if (showToast) showToast(`${item.customer_name} चयन गरियो`, 'success');
+    if (showToastRef.current) showToastRef.current(`${item.customer_name} ${t('selected', language)}`, 'success');
     
     setTimeout(() => {
       setProcessingId(null);
@@ -157,9 +176,9 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
     const diffMs = now - queued;
     const diffMins = Math.floor(diffMs / 60000);
     
-    if (diffMins < 60) return `${diffMins} मिनेट पहिले`;
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)} घण्टा पहिले`;
-    return `${Math.floor(diffMins / 1440)} दिन पहिले`;
+    if (diffMins < 60) return `${diffMins} ${t('minutesAgo', language)}`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)} ${t('hoursAgo', language)}`;
+    return `${Math.floor(diffMins / 1440)} ${t('daysAgo', language)}`;
   };
 
   const openModal = () => {
@@ -173,22 +192,41 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
     }, 100);
   };
 
+  // Helper to get display label for a cylinder value
+  const getCylinderDisplayLabel = (value) => {
+    const option = cylinderOptions.find(opt => opt.value === value);
+    return option ? option.label : value;
+  };
+
   return (
-    <div className="space-y-5">
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        {/* Header Section */}
-        <div className="p-4 bg-gradient-to-r from-blue-700 to-blue-500 border-b">
+    <div className="space-y-5 pb-24">
+      {/* Page Header */}
+      <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <IconQueue className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">{t('queue', language)}</h1>
+            <p className="text-blue-100 text-base mt-1">{t('queueDesc', language)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Queue List Card */}
+      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold text-white">पर्खने सूची</h2>
-              <p className="text-blue-50 text-base mt-1">ग्राहक पर्खाइ व्यवस्थापन</p>
+              <h2 className="text-xl font-bold text-white">{t('waitingList', language)}</h2>
+              <p className="text-blue-100 text-sm mt-0.5">{t('customerWaitManagement', language)}</p>
             </div>
             <button
               onClick={openModal}
-              className="bg-white/20 hover:bg-white/30 text-white px-5 py-2 rounded-xl text-base font-bold transition-colors flex items-center gap-2"
+              className="px-5 py-2.5 bg-white/20 hover:bg-white/30 text-white rounded-xl font-semibold transition-all flex items-center gap-2"
             >
               <IconPlus className="w-5 h-5" />
-              नयाँ
+              {t('addNew', language)}
             </button>
           </div>
         </div>
@@ -201,8 +239,8 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
           ) : queue.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <IconQueue className="w-20 h-20 mx-auto mb-4 opacity-30" />
-              <p className="text-xl font-bold text-gray-500">क्यू खाली छ</p>
-              <p className="text-base mt-1">कुनै ग्राहक पर्खिरहेको छैन</p>
+              <p className="text-xl font-bold text-gray-500">{t('queueEmpty', language)}</p>
+              <p className="text-base mt-1">{t('noCustomersWaiting', language)}</p>
             </div>
           ) : (
             <>
@@ -224,7 +262,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                         </div>
                         <div className="text-base text-gray-700 mb-2 flex items-center gap-2 font-semibold">
                           <IconEmptyCylinder className="w-5 h-5 text-red-500" />
-                          खाली: {item.empty_cylinder}
+                          {t('empty', language)}: {getCylinderDisplayLabel(item.empty_cylinder)}
                         </div>
                         <div className="flex items-center gap-1 text-sm text-gray-500">
                           <IconClock className="w-4 h-4" />
@@ -232,7 +270,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                         </div>
                         {item.notes && (
                           <div className="text-sm text-gray-600 mt-2 p-2 bg-white rounded-lg">
-                            {item.notes}
+                            📝 {item.notes}
                           </div>
                         )}
                       </div>
@@ -246,14 +284,14 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
                         >
-                          {processingId === item.id ? 'प्रोसेसिङ...' : 'लेनदेन'}
+                          {processingId === item.id ? t('processing', language) : t('transaction', language)}
                         </button>
                         <button
                           onClick={() => removeFromQueue(item.id, item.customer_name)}
                           disabled={processingId === item.id}
                           className="px-5 py-2 rounded-xl text-base font-semibold bg-red-500 text-white hover:bg-red-600 transition disabled:opacity-50"
                         >
-                          हटाउनुहोस्
+                          {t('remove', language)}
                         </button>
                       </div>
                     </div>
@@ -263,7 +301,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
               
               <div className="mt-4 p-4 bg-gray-50 rounded-xl text-center border border-gray-200">
                 <span className="text-base font-bold text-gray-700">
-                  क्यूमा {queue.length} जना ग्राहक पर्खिरहेका छन्
+                  {t('totalInQueue', language)}: {queue.length}
                 </span>
               </div>
             </>
@@ -277,7 +315,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="sticky top-0 bg-gradient-to-r from-blue-700 to-blue-500 p-5">
               <div className="flex justify-between items-center">
-                <h3 className="text-2xl font-bold text-white">क्यूमा ग्राहक थप्नुहोस्</h3>
+                <h3 className="text-2xl font-bold text-white">{t('addToQueue', language)}</h3>
                 <button
                   onClick={() => setShowAddModal(false)}
                   className="p-2 hover:bg-white/20 rounded-lg transition-colors"
@@ -289,7 +327,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
 
             <div className="p-5">
               <div className="mb-5">
-                <label className="block text-lg font-bold text-gray-800 mb-2">ग्राहक खोज्नुहोस्</label>
+                <label className="block text-lg font-bold text-gray-800 mb-2">{t('searchCustomer', language)}</label>
                 <div className="relative">
                   <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -297,7 +335,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="नाम लेख्नुहोस्..."
+                    placeholder={t('enterName', language)}
                     className="w-full pl-11 pr-4 py-3 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-semibold"
                     autoFocus
                   />
@@ -307,7 +345,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
               {searchTerm.length > 0 && !selectedCustomer && (
                 <div className="mb-5 max-h-60 overflow-y-auto border-2 border-gray-200 rounded-xl">
                   {filteredCustomers.length === 0 ? (
-                    <div className="text-center text-gray-500 py-6 text-base font-medium">कोही ग्राहक छैन</div>
+                    <div className="text-center text-gray-500 py-6 text-base font-medium">{t('noCustomers', language)}</div>
                   ) : (
                     filteredCustomers.map(customer => (
                       <div
@@ -316,7 +354,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                         className="p-4 border-b cursor-pointer hover:bg-blue-50 transition"
                       >
                         <div className="font-bold text-lg text-gray-900">{customer.name}</div>
-                        <div className="text-base text-gray-600 mt-1">{customer.phone || 'नम्बर छैन'}</div>
+                        <div className="text-base text-gray-600 mt-1">{customer.phone || t('noPhone', language)}</div>
                       </div>
                     ))
                   )}
@@ -325,7 +363,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
 
               {selectedCustomer && (
                 <div className="mb-5 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <div className="text-sm font-bold text-blue-700 mb-2">चयन गरिएको ग्राहक</div>
+                  <div className="text-sm font-bold text-blue-700 mb-2">{t('selectedCustomer', language)}</div>
                   <div className="font-bold text-xl text-gray-900">{selectedCustomer.name}</div>
                   <button
                     onClick={() => {
@@ -334,7 +372,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                     }}
                     className="mt-2 text-sm font-semibold text-red-500 hover:text-red-700"
                   >
-                    परिवर्तन गर्नुहोस्
+                    {t('change', language)}
                   </button>
                 </div>
               )}
@@ -342,7 +380,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
               {selectedCustomer && (
                 <>
                   <div className="mb-5">
-                    <label className="block text-lg font-bold text-gray-800 mb-2">खाली सिलिन्डर</label>
+                    <label className="block text-lg font-bold text-gray-800 mb-2">{t('emptyCylinder', language)}</label>
                     <div className="relative">
                       <select
                         value={emptyCylinder}
@@ -350,7 +388,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                         className="w-full p-3 text-lg font-bold border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-colors appearance-none bg-white shadow-sm pr-12"
                       >
                         {cylinderOptions.map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -362,12 +400,12 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                   </div>
 
                   <div className="mb-5">
-                    <label className="block text-lg font-bold text-gray-800 mb-2">नोट (वैकल्पिक)</label>
+                    <label className="block text-lg font-bold text-gray-800 mb-2">{t('notes', language)} <span className="text-sm font-normal text-gray-500">({t('optional', language)})</span></label>
                     <textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows="2"
-                      placeholder="जस्तै: रु.२०० बाँकी"
+                      placeholder={t('notesPlaceholder', language)}
                       className="w-full p-3 text-base border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-all resize-none font-semibold"
                     />
                   </div>
@@ -383,12 +421,12 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                   {isAdding ? (
                     <>
                       <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
-                      थप्दै...
+                      {t('adding', language)}...
                     </>
                   ) : (
                     <>
                       <IconCheck className="w-5 h-5" />
-                      ग्राहक थप्नुहोस्
+                      {t('addCustomer', language)}
                     </>
                   )}
                 </button>
@@ -400,7 +438,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                   }}
                   className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-4 rounded-xl font-bold text-lg transition"
                 >
-                  रद्द गर्नुहोस्
+                  {t('cancel', language)}
                 </button>
               </div>
             </div>

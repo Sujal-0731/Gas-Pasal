@@ -334,6 +334,58 @@ const getUserStats = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+// Update Customer
+const updateCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, phone, address, remarks } = req.body;
+    
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (phone !== undefined) updateData.phone = phone;
+    if (address !== undefined) updateData.address = address;
+    if (remarks !== undefined) updateData.remarks = remarks;
+    
+    const { data, error } = await supabase
+      .from('customers')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    res.json({ success: true, message: 'Customer updated', customer: data });
+  } catch (error) {
+    logger.error('Update customer error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Update Stock
+const updateStock = async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { filled_count, empty_count } = req.body;
+    
+    const updateData = {};
+    if (filled_count !== undefined) updateData.filled_count = filled_count;
+    if (empty_count !== undefined) updateData.empty_count = empty_count;
+    updateData.updated_at = new Date();
+    
+    const { data, error } = await supabase
+      .from('stock')
+      .update(updateData)
+      .eq('cylinder_type', decodeURIComponent(type))
+      .select()
+      .single();
+    
+    if (error) throw error;
+    res.json({ success: true, message: 'Stock updated', stock: data });
+  } catch (error) {
+    logger.error('Update stock error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 module.exports = {
   getAllUsers,
@@ -342,5 +394,7 @@ module.exports = {
   updateUser,
   resetPassword,
   deleteUser,
-  getUserStats
+  getUserStats,
+  updateCustomer,
+  updateStock
 };

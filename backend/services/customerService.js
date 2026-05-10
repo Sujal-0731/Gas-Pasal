@@ -44,5 +44,16 @@ const createCustomer = async (customerData) => {
   
   return { data, error };
 };
+const updateCustomer = async (id, customerData) => {
+  const { data, error } = await supabase
+    .from('customers')
+    .update(customerData)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  return { data, error };
+};
 
-module.exports = { findCustomerByName, getAllCustomers, createCustomer };
+
+module.exports = { findCustomerByName, getAllCustomers, createCustomer,updateCustomer };

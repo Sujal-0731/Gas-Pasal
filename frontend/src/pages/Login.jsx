@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
+import { t } from '../utils/translations';
+import { IconLanguage } from '../components/icons';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 function Login({ onLogin, showToast }) {
+  const { language, toggleLanguage } = useLanguage();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -11,7 +15,7 @@ function Login({ onLogin, showToast }) {
     e.preventDefault();
     
     if (!username || !password) {
-      showToast('यूजरनेम र पासवर्ड आवश्यक छ', 'error');
+      showToast(t('usernamePasswordRequired', language), 'error');
       return;
     }
     
@@ -27,18 +31,17 @@ function Login({ onLogin, showToast }) {
       const data = await response.json();
       
       if (data.success) {
-        // Store token and user info
         localStorage.setItem('auth_token', data.data.token);
         localStorage.setItem('user', JSON.stringify(data.data.user));
         
-        showToast(`स्वागत छ, ${data.data.user.username}!`, 'success');
+        showToast(`${t('welcome', language)}, ${data.data.user.username}!`, 'success');
         onLogin(data.data.user);
       } else {
-        showToast(data.message || 'लगइन असफल', 'error');
+        showToast(data.message || t('loginFailed', language), 'error');
       }
     } catch (error) {
       console.error('Login error:', error);
-      showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
+      showToast(t('networkError', language), 'error');
     }
     
     setLoading(false);
@@ -46,26 +49,36 @@ function Login({ onLogin, showToast }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-blue-700 to-blue-500 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative">
+        {/* Language Toggle Button - Top Right */}
+        <button
+          onClick={toggleLanguage}
+          className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+          aria-label={language === 'np' ? 'Switch to English' : 'नेपालीमा स्विच गर्नुहोस्'}
+        >
+          <IconLanguage className="w-4 h-4" />
+          <span className="font-semibold">{language === 'np' ? 'EN' : 'NP'}</span>
+        </button>
+
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-blue-600 text-2xl font-bold">A</span>
           </div>
           <h2 className="text-2xl font-bold text-gray-800">Anam Store</h2>
-          <p className="text-gray-500 mt-1">ग्यास सिलिन्डर व्यवस्थापन प्रणाली</p>
+          <p className="text-gray-500 mt-1">{t('appDescription', language)}</p>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              यूजरनेम
+              {t('username', language)}
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
-              placeholder="आफ्नो यूजरनेम लेख्नुहोस्"
+              placeholder={t('enterUsername', language)}
               disabled={loading}
               autoFocus
             />
@@ -73,14 +86,14 @@ function Login({ onLogin, showToast }) {
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              पासवर्ड
+              {t('password', language)}
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
-              placeholder="पासवर्ड लेख्नुहोस्"
+              placeholder={t('enterPassword', language)}
               disabled={loading}
             />
           </div>
@@ -93,16 +106,16 @@ function Login({ onLogin, showToast }) {
             {loading ? (
               <div className="flex items-center justify-center gap-2">
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                लगइन हुँदै...
+                {t('loggingIn', language)}
               </div>
             ) : (
-              'लगइन गर्नुहोस्'
+              t('login', language)
             )}
           </button>
         </form>
         
         <div className="mt-6 text-center text-sm text-gray-500">
-          <p>सम्पर्क: प्रणाली व्यवस्थापक</p>
+          <p>{t('contactAdmin', language)}</p>
         </div>
       </div>
     </div>

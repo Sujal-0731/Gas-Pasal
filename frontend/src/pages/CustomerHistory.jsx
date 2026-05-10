@@ -10,18 +10,29 @@ import {
   IconNewPurchase,
   IconQueue,
   IconAlertCircle,
-  IconUsers
+  IconUsers,
+  IconEdit,
+  IconRefresh
 } from '../components/icons';
 import { getAuthHeader } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
+import { t } from '../utils/translations';
+import { translateCylinder } from '../utils/cylinderTranslator';
+import EditCustomerModal from '../components/admin/EditCustomerModal';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-function CustomerHistory({ showToast }) {
+function CustomerHistory({ showToast, user }) {
+  const { language } = useLanguage();
   const [customers, setCustomers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [history, setHistory] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showCustomerEditModal, setShowCustomerEditModal] = useState(false);
+  const [customerToEdit, setCustomerToEdit] = useState(null);
+
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     loadCustomers();
@@ -39,14 +50,14 @@ function CustomerHistory({ showToast }) {
       }
     } catch (error) {
       console.error('Error loading customers:', error);
-      if (showToast) showToast('ग्राहक लोड गर्न असफल', 'error');
+      if (showToast) showToast(t('error', language), 'error');
     }
     setLoading(false);
   };
 
   const makePhoneCall = (phoneNumber) => {
     if (!phoneNumber) {
-      if (showToast) showToast('फोन नम्बर उपलब्ध छैन', 'error');
+      if (showToast) showToast(t('phoneNotAvailable', language), 'error');
       return;
     }
     window.location.href = `tel:${phoneNumber}`;
@@ -56,20 +67,17 @@ function CustomerHistory({ showToast }) {
     if (!phoneNumber) return;
     try {
       await navigator.clipboard.writeText(phoneNumber);
-      if (showToast) showToast(`${phoneNumber} कपी गरियो`, 'success');
+      if (showToast) showToast(`${phoneNumber} ${t('copied', language)}`, 'success');
     } catch (err) {
-      if (showToast) showToast('कपी गर्न असफल', 'error');
+      if (showToast) showToast(t('copyFailed', language), 'error');
     }
   };
 
-  // Search by name OR phone number
   const filteredCustomers = customers.filter(c => {
     if (!searchTerm) return true;
-    
     const searchLower = searchTerm.toLowerCase();
     const nameMatch = c.name.toLowerCase().includes(searchLower);
     const phoneMatch = c.phone && c.phone.includes(searchTerm);
-    
     return nameMatch || phoneMatch;
   });
 
@@ -86,86 +94,96 @@ function CustomerHistory({ showToast }) {
       }
     } catch (error) {
       console.error('Error loading history:', error);
-      if (showToast) showToast('इतिहास लोड गर्न असफल', 'error');
+      if (showToast) showToast(t('error', language), 'error');
     }
     setLoading(false);
   };
 
+  const handleEditClick = () => {
+    if (history?.customer) {
+      setCustomerToEdit(history.customer);
+      setShowCustomerEditModal(true);
+    }
+  };
+
+  const handleCustomerUpdated = async (updatedCustomerData) => {
+    loadCustomers();
+    
+    if (updatedCustomerData) {
+      setSelectedCustomer(updatedCustomerData);
+      try {
+        const response = await fetch(`${API_URL}/customers/${encodeURIComponent(updatedCustomerData.name)}/history`, {
+          headers: getAuthHeader()
+        });
+        const data = await response.json();
+        if (data.success) {
+          setHistory(data);
+        } else {
+          showToast(t('error', language), 'error');
+        }
+      } catch (error) {
+        console.error('Error refreshing history:', error);
+        showToast(t('networkError', language), 'error');
+      }
+    } else if (selectedCustomer) {
+      await viewHistory(selectedCustomer);
+    }
+  };
+
   if (selectedCustomer) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-5 pb-24">
         <button
           onClick={() => { setSelectedCustomer(null); setHistory(null); }}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors font-medium text-base"
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors font-medium"
         >
-          <IconChevronLeft className="w-6 h-6" />
-          <span className="text-base font-bold">सबै ग्रাহक</span>
+          <IconChevronLeft className="w-5 h-5" />
+          <span>{t('allCustomers', language)}</span>
         </button>
 
+        {/* Customer Details Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
-            <div className="flex justify-between items-center">
-              <h3 className="text-white font-bold text-xl">ग्राहक विवरण</h3>
-              {history?.customer?.phone && (
-                <button
-                  onClick={() => makePhoneCall(history.customer.phone)}
-                  className="bg-white/20 hover:bg-white/30 text-white px-5 py-2 rounded-full text-base font-semibold transition-colors flex items-center gap-2"
-                >
-                  <IconPhone className="w-5 h-5" />
-                  कल गर्नुहोस्
-                </button>
-              )}
+          <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-5">
+            <div className="flex justify-between items-center flex-wrap gap-3">
+              <h3 className="text-white font-bold text-xl">{t('customerDetails', language)}</h3>
+              <div className="flex gap-2">
+                {history?.customer?.phone && (
+                  <button
+                    onClick={() => makePhoneCall(history.customer.phone)}
+                    className="bg-white/20 hover:bg-white/30 text-white px-4 py-1.5 rounded-full text-sm font-semibold transition-colors flex items-center gap-2"
+                  >
+                    <IconPhone className="w-4 h-4" />
+                    {t('call', language)}
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={handleEditClick}
+                    className="bg-white/20 hover:bg-white/30 text-white px-4 py-1.5 rounded-full text-sm font-semibold transition-colors flex items-center gap-2"
+                  >
+                    <IconEdit className="w-4 h-4" />
+                    {t('edit', language)}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           
           <div className="p-6 space-y-4">
-            <div className="flex justify-between items-center py-3 border-b border-gray-100">
-              <span className="text-base font-bold text-gray-600">पहिचान</span>
-              <span className="text-gray-900 font-mono text-base font-medium">{history?.customer?.customer_id}</span>
-            </div>
-            <div className="flex justify-between items-center py-3 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <IconUsers className="w-5 h-5 text-gray-400" />
-                <span className="text-base font-bold text-gray-600">नाम</span>
-              </div>
-              <span className="text-gray-900 font-bold text-lg">{history?.customer?.name}</span>
-            </div>
-            <div className="flex justify-between items-center py-3 border-b border-gray-100">
-              <span className="text-base font-bold text-gray-600">सम्पर्क</span>
-              <div className="flex items-center gap-2">
-                <span className="text-gray-900 text-base font-medium">{history?.customer?.phone || 'छैन'}</span>
-                {history?.customer?.phone && (
-                  <>
-                    <button
-                      onClick={() => copyPhoneNumber(history.customer.phone)}
-                      className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="कपी गर्नुहोस्"
-                    >
-                      <IconCopy className="w-5 h-5" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="flex justify-between items-center py-3 border-b border-gray-100">
-              <span className="text-base font-bold text-gray-600">ठेगाना</span>
-              <span className="text-gray-900 text-base font-medium">{history?.customer?.address || 'छैन'}</span>
-            </div>
-            <div className="flex justify-between items-center py-3">
-              <span className="text-base font-bold text-gray-600">कैफियत</span>
-              <span className="text-gray-900 text-base font-medium">{history?.customer?.remarks || 'छैन'}</span>
-            </div>
+            {/* ... customer details ... */}
           </div>
         </div>
 
+        {/* Total Exchanges */}
         <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white text-center py-4 rounded-xl font-bold text-xl">
-          कुल लेनदेन: {history?.totalExchanges || 0}
+          {t('totalTransactions', language)}: {history?.totalExchanges || 0}
         </div>
 
+        {/* Transactions List - WITH TRANSLATED CYLINDER NAMES */}
         {history?.transactions?.length === 0 ? (
           <div className="bg-white rounded-xl p-8 text-center text-gray-400">
             <IconAlertCircle className="w-14 h-14 mx-auto mb-3 opacity-50" />
-            <p className="text-lg font-medium">कुनै लेनदेन छैन</p>
+            <p className="text-lg font-medium">{t('noTransactions', language)}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -179,14 +197,14 @@ function CustomerHistory({ showToast }) {
                   {t.source === 'queue' && (
                     <span className="bg-purple-100 text-purple-700 text-sm px-3 py-1.5 rounded-full flex items-center gap-1 font-semibold">
                       <IconQueue className="w-4 h-4" />
-                      क्यूबाट
+                      {t('fromQueue', language)}
                     </span>
                   )}
                 </div>
                 
                 {t.source === 'queue' && t.queue_date_formatted && (
                   <div className="text-sm text-blue-600 mb-3 flex items-center gap-1 font-medium">
-                    <span>क्यूमा थपिएको: {t.queue_date_formatted} {t.queue_time_formatted ? `| ${t.queue_time_formatted}` : ''}</span>
+                    <span>{t('addedToQueue', language)}: {t.queue_date_formatted} {t.queue_time_formatted ? `| ${t.queue_time_formatted}` : ''}</span>
                   </div>
                 )}
                 
@@ -194,14 +212,18 @@ function CustomerHistory({ showToast }) {
                   <div className="flex items-center gap-2">
                     <IconEmptyCylinder className="w-5 h-5 text-red-500" />
                     <span className="text-base font-semibold text-gray-800">
-                      {t.empty_cylinder === 'कोही छैन' ? 'नयाँ खरिद' : t.empty_cylinder}
+                      {t.empty_cylinder === 'कोही छैन' 
+                        ? t('newPurchase', language) 
+                        : translateCylinder(t.empty_cylinder, language)}
                     </span>
                   </div>
                   <span className="text-gray-400 text-xl font-bold">→</span>
                   <div className="flex items-center gap-2">
                     <IconFilledCylinder className="w-5 h-5 text-green-600" />
                     <span className="text-base font-bold text-green-700">
-                      {t.filled_cylinder === 'कोही छैन' ? 'फिर्ता' : t.filled_cylinder}
+                      {t.filled_cylinder === 'कोही छैन' 
+                        ? t('return', language) 
+                        : translateCylinder(t.filled_cylinder, language)}
                     </span>
                   </div>
                 </div>
@@ -215,81 +237,118 @@ function CustomerHistory({ showToast }) {
             ))}
           </div>
         )}
+
+        {/* Edit Customer Modal */}
+        {showCustomerEditModal && customerToEdit && (
+          <EditCustomerModal
+            customer={customerToEdit}
+            onClose={() => {
+              setShowCustomerEditModal(false);
+              setCustomerToEdit(null);
+            }}
+            onSuccess={handleCustomerUpdated}
+            showToast={showToast}
+          />
+        )}
       </div>
     );
   }
 
   return (
-    <div className='space-y-5'> 
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        <div className="p-4 bg-gradient-to-r from-blue-700 to-blue-500 border-b">
-          <h2 className="text-2xl font-bold text-white">ग्राहक इतिहास</h2>
-          <p className="text-blue-50 text-base mt-1">ग्राहक खोज्नुहोस् र लेनदेन हेर्नुहोस्</p>
+    <div className="space-y-5 pb-24">
+      {/* Page Header */}
+      <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <IconUsers className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">{t('customerHistory', language)}</h1>
+            <p className="text-blue-100 text-base mt-1">{t('searchCustomer', language)}</p>
+          </div>
         </div>
+      </div>
 
+      {/* Search Section */}
+      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
         <div className="p-6">
-          <div className="relative mb-6">
-            <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
+          <div className="relative">
+            <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="नाम वा फोन नम्बरले खोज्नुहोस्..."
+              placeholder={t('searchNameOrPhone', language)}
               className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium"
             />
-            <p className="text-xs text-gray-400 mt-1">
-              💡 टिप: नाम वा फोन नम्बरको कुनै भाग लेख्नुहोस्
-            </p>
           </div>
-
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : filteredCustomers.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <IconAlertCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">कुनै ग्राहक छैन</p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-[500px] overflow-y-auto">
-              {filteredCustomers.map(customer => (
-                <div
-                  key={customer.id}
-                  onClick={() => viewHistory(customer)}
-                  className="flex items-center justify-between p-5 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors group border-2 border-transparent hover:border-blue-200"
-                >
-                  <div className="flex-1">
-                    <p className="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition-colors">
-                      {customer.name}
-                    </p>
-                    <p className="text-base text-gray-600 mt-1 font-medium">
-                      {customer.phone ? `📱 ${customer.phone}` : '📞 नम्बर छैन'}
-                    </p>
-                    {customer.address && (
-                      <p className="text-sm text-gray-400 mt-0.5">
-                        📍 {customer.address}
-                      </p>
-                    )}
-                  </div>
-                  {customer.phone && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        makePhoneCall(customer.phone);
-                      }}
-                      className="p-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
-                      title="फोन गर्नुहोस्"
-                    >
-                      <IconPhone className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          <p className="text-xs text-gray-400 mt-2">
+            💡 {t('searchTip', language)}
+          </p>
         </div>
       </div>
+
+      {/* Customers List */}
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-gray-500">{t('loading', language)}...</p>
+          </div>
+        </div>
+      ) : filteredCustomers.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8 text-center">
+          <IconAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-lg font-medium text-gray-500">{t('noCustomers', language)}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredCustomers.map(customer => (
+            <div
+              key={customer.id}
+              onClick={() => viewHistory(customer)}
+              className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-all group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition-colors">
+                    {customer.name}
+                  </p>
+                  <p className="text-base text-gray-600 mt-1 font-medium">
+                    {customer.phone ? `📱 ${customer.phone}` : '📞 ' + t('noPhone', language)}
+                  </p>
+                  {customer.address && (
+                    <p className="text-sm text-gray-400 mt-0.5">
+                      📍 {customer.address}
+                    </p>
+                  )}
+                </div>
+                {customer.phone && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      makePhoneCall(customer.phone);
+                    }}
+                    className="p-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+                    title={t('call', language)}
+                  >
+                    <IconPhone className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Refresh Button */}
+      <button
+        onClick={loadCustomers}
+        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+      >
+        <IconRefresh className="w-5 h-5" />
+        {t('refresh', language)}
+      </button>
     </div>
   );
 }

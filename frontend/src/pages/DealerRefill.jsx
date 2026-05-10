@@ -5,7 +5,6 @@ import {
   IconRefresh,
   IconAlertCircle,
   IconChevronLeft,
-  IconChevronRight,
   IconCalendar,
   IconFilledCylinder,
   IconEmptyCylinder,
@@ -17,10 +16,24 @@ import {
   IconX
 } from '../components/icons';
 import { getAuthHeader } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
+import { t } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+// Cylinder mapping for display
+const getCylinderDisplayName = (cylinderKey, language) => {
+  const mappings = {
+    lokpriya: { np: 'लोकप्रिय', en: 'Lokpriya' },
+    sugam: { np: 'सुगम', en: 'Sugam' },
+    everest: { np: 'एभरेस्ट', en: 'Everest' },
+    other: { np: 'अन्य', en: 'Other' }
+  };
+  return mappings[cylinderKey]?.[language] || cylinderKey;
+};
+
 function DealerRefill({ showToast }) {
+  const { language } = useLanguage();
   const [refillDate, setRefillDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [refills, setRefills] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -36,6 +49,46 @@ function DealerRefill({ showToast }) {
   const [otherGive, setOtherGive] = useState(0);
   const [otherTake, setOtherTake] = useState(0);
   const [notes, setNotes] = useState('');
+
+  // Cylinder sections with display names based on language
+  const cylinderSections = [
+    { 
+      key: 'lokpriya',
+      label: getCylinderDisplayName('lokpriya', language),
+      give: lokpriyaGive, 
+      setGive: setLokpriyaGive, 
+      take: lokpriyaTake, 
+      setTake: setLokpriyaTake, 
+      icon: <IconLokpriya className="w-8 h-8" /> 
+    },
+    { 
+      key: 'sugam',
+      label: getCylinderDisplayName('sugam', language),
+      give: sugamGive, 
+      setGive: setSugamGive, 
+      take: sugamTake, 
+      setTake: setSugamTake, 
+      icon: <IconSugam className="w-8 h-8" /> 
+    },
+    { 
+      key: 'everest',
+      label: getCylinderDisplayName('everest', language),
+      give: everestGive, 
+      setGive: setEverestGive, 
+      take: everestTake, 
+      setTake: setEverestTake, 
+      icon: <IconEverest className="w-8 h-8" /> 
+    },
+    { 
+      key: 'other',
+      label: getCylinderDisplayName('other', language),
+      give: otherGive, 
+      setGive: setOtherGive, 
+      take: otherTake, 
+      setTake: setOtherTake, 
+      icon: <IconOther className="w-8 h-8" /> 
+    }
+  ];
 
   useEffect(() => {
     loadRefillHistory();
@@ -78,7 +131,7 @@ function DealerRefill({ showToast }) {
         sendData = {
           refillDate,
           mode: 'exchange',
-          notes: notes || 'खाली साटासाट',
+          notes: notes || t('emptyExchange', language),
           exchange_give_lokpriya: lokpriyaGive,
           exchange_give_sugam: sugamGive,
           exchange_give_everest: everestGive,
@@ -102,7 +155,7 @@ function DealerRefill({ showToast }) {
       const data = await response.json();
       
       if (response.ok && data.success) {
-        showToast(mode === 'normal' ? 'रिफिल सुरक्षित गरियो' : 'खाली साटासाट सुरक्षित गरियो', 'success');
+        showToast(mode === 'normal' ? t('refillSaved', language) : t('exchangeSaved', language), 'success');
         
         // Reset form
         setLokpriyaGive(0);
@@ -115,17 +168,16 @@ function DealerRefill({ showToast }) {
         setOtherTake(0);
         setNotes('');
         
-        // Reload history
         await loadRefillHistory();
         
       } else {
-        const errorMessage = data.message || (mode === 'normal' ? 'रिफिल सेभ गर्न असफल' : 'साटासाट सेभ गर्न असफल');
+        const errorMessage = data.message || (mode === 'normal' ? t('refillFailed', language) : t('exchangeFailed', language));
         showToast(errorMessage, 'error');
       }
       
     } catch (error) {
       console.error('Save error:', error);
-      showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
+      showToast(t('networkError', language), 'error');
     }
     setLoading(false);
   };
@@ -148,21 +200,39 @@ function DealerRefill({ showToast }) {
 
   const { totalFilled, totalEmpty } = getTotalStats();
 
+  // Helper to translate cylinder names in history
+  const translateCylinderName = (name) => {
+    const translations = {
+      'लोकप्रिय': language === 'np' ? 'लोकप्रिय' : 'Lokpriya',
+      'सुगम': language === 'np' ? 'सुगम' : 'Sugam',
+      'एभरेस्ट': language === 'np' ? 'एभरेस्ट' : 'Everest',
+      'अन्य / Other': language === 'np' ? 'अन्य' : 'Other'
+    };
+    return translations[name] || name;
+  };
+
   if (showHistory) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-5 pb-24">
         <button
           onClick={() => setShowHistory(false)}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors font-medium"
         >
-          <IconChevronLeft className="w-6 h-6" />
-          <span className="text-lg font-medium">नयाँ रिफिल</span>
+          <IconChevronLeft className="w-5 h-5" />
+          <span>{t('newRefill', language)}</span>
         </button>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-5 bg-gradient-to-r from-blue-600 to-indigo-600">
-            <h2 className="text-2xl font-bold text-white">रिफिल इतिहास</h2>
-            <p className="text-white/80 text-lg mt-1">कुल रिफिल: {refills.length}</p>
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-700 to-blue-500 p-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <IconDealer className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">{t('refillHistory', language)}</h2>
+                <p className="text-blue-100 text-base mt-1">{t('totalRefills', language)}: {refills.length}</p>
+              </div>
+            </div>
           </div>
 
           <div className="p-5">
@@ -170,18 +240,18 @@ function DealerRefill({ showToast }) {
               <div className="bg-green-50 rounded-xl p-4 text-center">
                 <IconFilledCylinder className="w-10 h-10 text-green-600 mx-auto mb-2" />
                 <div className="text-3xl font-bold text-green-700">{totalFilled}</div>
-                <div className="text-base text-gray-600 mt-1 font-medium">जम्मा भरिएको</div>
+                <div className="text-base text-gray-600 mt-1 font-medium">{t('totalFilled', language)}</div>
               </div>
               <div className="bg-red-50 rounded-xl p-4 text-center">
                 <IconEmptyCylinder className="w-10 h-10 text-red-500 mx-auto mb-2" />
                 <div className="text-3xl font-bold text-red-600">{totalEmpty}</div>
-                <div className="text-base text-gray-600 mt-1 font-medium">जम्मा खाली</div>
+                <div className="text-base text-gray-600 mt-1 font-medium">{t('totalEmpty', language)}</div>
               </div>
             </div>
 
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {refills.length === 0 ? (
-                <div className="text-center text-gray-400 py-8 text-lg">कुनै रिफिल इतिहास छैन</div>
+                <div className="text-center text-gray-400 py-8 text-lg">{t('noRefills', language)}</div>
               ) : (
                 refills.map((r, idx) => (
                   <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
@@ -190,7 +260,7 @@ function DealerRefill({ showToast }) {
                       <span className="font-bold text-lg">{r.refill_date}</span>
                       {r.mode === 'exchange' && (
                         <span className="ml-auto text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full">
-                          साटासाट
+                          {t('exchange', language)}
                         </span>
                       )}
                     </div>
@@ -201,7 +271,7 @@ function DealerRefill({ showToast }) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <IconLokpriya className="w-6 h-6" />
-                                <span>लोकप्रिय</span>
+                                <span>{translateCylinderName('लोकप्रिय')}</span>
                               </div>
                               <div className="flex gap-3">
                                 <span className="text-green-600">+{r.exchange_give_lokpriya || 0}</span>
@@ -213,7 +283,7 @@ function DealerRefill({ showToast }) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <IconSugam className="w-6 h-6" />
-                                <span>सुगम</span>
+                                <span>{translateCylinderName('सुगम')}</span>
                               </div>
                               <div className="flex gap-3">
                                 <span className="text-green-600">+{r.exchange_give_sugam || 0}</span>
@@ -225,7 +295,7 @@ function DealerRefill({ showToast }) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <IconEverest className="w-6 h-6" />
-                                <span>एभरेस्ट</span>
+                                <span>{translateCylinderName('एभरेस्ट')}</span>
                               </div>
                               <div className="flex gap-3">
                                 <span className="text-green-600">+{r.exchange_give_everest || 0}</span>
@@ -237,7 +307,7 @@ function DealerRefill({ showToast }) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <IconOther className="w-6 h-6" />
-                                <span>अन्य</span>
+                                <span>{translateCylinderName('अन्य / Other')}</span>
                               </div>
                               <div className="flex gap-3">
                                 <span className="text-green-600">+{r.exchange_give_other || 0}</span>
@@ -246,7 +316,7 @@ function DealerRefill({ showToast }) {
                             </div>
                           )}
                         </div>
-                        <div className="text-xs font-medium text-purple-600 mt-2">खाली साटासाट</div>
+                        <div className="text-xs font-medium text-purple-600 mt-2">{t('emptyExchangeLabel', language)}</div>
                       </>
                     ) : (
                       <div className="space-y-2 text-base">
@@ -254,7 +324,7 @@ function DealerRefill({ showToast }) {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <IconLokpriya className="w-6 h-6" />
-                              <span>लोकप्रिय</span>
+                              <span>{translateCylinderName('लोकप्रिय')}</span>
                             </div>
                             <div className="flex gap-3">
                               <span className="text-green-600">+{r.lokpriya_filled || 0}</span>
@@ -266,7 +336,7 @@ function DealerRefill({ showToast }) {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <IconSugam className="w-6 h-6" />
-                              <span>सुगम</span>
+                              <span>{translateCylinderName('सुगम')}</span>
                             </div>
                             <div className="flex gap-3">
                               <span className="text-green-600">+{r.sugam_filled || 0}</span>
@@ -278,7 +348,7 @@ function DealerRefill({ showToast }) {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <IconEverest className="w-6 h-6" />
-                              <span>एभरेस्ट</span>
+                              <span>{translateCylinderName('एभरेस्ट')}</span>
                             </div>
                             <div className="flex gap-3">
                               <span className="text-green-600">+{r.everest_filled || 0}</span>
@@ -290,7 +360,7 @@ function DealerRefill({ showToast }) {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <IconOther className="w-6 h-6" />
-                              <span>अन्य</span>
+                              <span>{translateCylinderName('अन्य / Other')}</span>
                             </div>
                             <div className="flex gap-3">
                               <span className="text-green-600">+{r.other_filled || 0}</span>
@@ -308,10 +378,10 @@ function DealerRefill({ showToast }) {
 
             <button
               onClick={loadRefillHistory}
-              className="w-full mt-5 bg-gray-100 hover:bg-gray-200 text-gray-700 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full mt-5 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
             >
-              <IconRefresh className="w-6 h-6" />
-              ताजा गर्नुहोस्
+              <IconRefresh className="w-5 h-5" />
+              {t('refresh', language)}
             </button>
           </div>
         </div>
@@ -320,25 +390,41 @@ function DealerRefill({ showToast }) {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-5 bg-gradient-to-r from-blue-600 to-indigo-600">
-          <div className="flex justify-between items-center">
+    <div className="space-y-5 pb-24">
+      {/* Page Header */}
+      <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <IconDealer className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">{t('dealerRefill', language)}</h1>
+            <p className="text-blue-100 text-base mt-1">{t('refillDetails', language)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Form Card */}
+      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
+          <div className="flex justify-between items-center flex-wrap gap-3">
             <div>
-              <h2 className="text-2xl font-bold text-white">डिलर रिफिल</h2>
-              <p className="text-white/80 text-lg mt-1">विवरण भर्नुहोस्</p>
+              <h2 className="text-xl font-bold text-white">{t('refillForm', language)}</h2>
+              <p className="text-blue-100 text-sm mt-0.5">{t('enterRefillDetails', language)}</p>
             </div>
             <button
               onClick={() => setShowHistory(true)}
-              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="px-5 py-2.5 bg-white/20 hover:bg-white/30 text-white rounded-xl font-semibold transition-all flex items-center gap-2"
             >
-              इतिहास हेर्नुहोस्
+              <IconRefresh className="w-5 h-5" />
+              {t('viewHistory', language)}
             </button>
           </div>
         </div>
 
-        <div className="p-5">
-          <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="p-6">
+          {/* Mode Toggle Buttons */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
             <button
               onClick={() => setMode('normal')}
               className={`py-4 rounded-xl font-bold text-lg transition-all ${
@@ -347,8 +433,7 @@ function DealerRefill({ showToast }) {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              <div>सामान्य रिफिल</div>
-              <div className="text-xs font-normal opacity-80">Normal Refill</div>
+              <div>{t('normalRefill', language)}</div>
             </button>
             <button
               onClick={() => setMode('exchange')}
@@ -358,48 +443,45 @@ function DealerRefill({ showToast }) {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              <div>खाली साटासाट</div>
-              <div className="text-xs font-normal opacity-80">Empty Exchange</div>
+              <div>{t('emptyExchange', language)}</div>
             </button>
           </div>
 
-          <div className={`p-5 rounded-xl mb-5 text-lg ${
+          {/* Info Box */}
+          <div className={`p-5 rounded-xl mb-6 text-base ${
             mode === 'normal' ? 'bg-green-50 border border-green-200' : 'bg-purple-50 border border-purple-200'
           }`}>
             {mode === 'normal' ? (
               <>
-                <p className="font-bold mb-2 text-xl">सामान्य रिफिल:</p>
-                <p className="text-gray-700">• <span className="text-green-600 font-bold">दियो (Give)</span> → डिलरले दिएको भरिएको ग्यास (स्टक बढ्छ)</p>
-                <p className="text-gray-700">• <span className="text-red-600 font-bold">लग्यो (Take)</span> → डिलरले लगेको खाली सिलिन्डर (स्टक घट्छ)</p>
+                <p className="font-bold mb-2 text-lg">{t('normalRefillInfo', language)}</p>
+                <p className="text-gray-700">• <span className="text-green-600 font-bold">{t('give', language)}</span> → {t('normalGiveDesc', language)}</p>
+                <p className="text-gray-700">• <span className="text-red-600 font-bold">{t('take', language)}</span> → {t('normalTakeDesc', language)}</p>
               </>
             ) : (
               <>
-                <p className="font-bold mb-2 text-xl">खाली साटासाट:</p>
-                <p className="text-gray-700">• <span className="text-green-600 font-bold">दियो (Give)</span> → डिलरले दिएको खाली सिलिन्डर (स्टक बढ्छ)</p>
-                <p className="text-gray-700">• <span className="text-red-600 font-bold">आयो (Take)</span> → डिलरले लगेको खाली सिलिन्डर (स्टक घट्छ)</p>
+                <p className="font-bold mb-2 text-lg">{t('exchangeRefillInfo', language)}</p>
+                <p className="text-gray-700">• <span className="text-green-600 font-bold">{t('give', language)}</span> → {t('exchangeGiveDesc', language)}</p>
+                <p className="text-gray-700">• <span className="text-red-600 font-bold">{t('take', language)}</span> → {t('exchangeTakeDesc', language)}</p>
               </>
             )}
           </div>
 
+          {/* Date Input */}
           <div className="mb-6">
-            <label className="block text-xl font-bold text-gray-700 mb-2 flex items-center gap-2">
-              <IconCalendar className="w-6 h-6" />
-              मिति
+            <label className="block text-base font-semibold text-gray-800 mb-2 flex items-center gap-2">
+              <IconCalendar className="w-5 h-5" />
+              {t('date', language)}
             </label>
             <input
               type="date"
               value={refillDate}
               onChange={(e) => setRefillDate(e.target.value)}
-              className="w-full p-4 text-xl border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-medium"
+              className="w-full p-4 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-medium"
             />
           </div>
 
-          {[
-            { label: 'लोकप्रिय', give: lokpriyaGive, setGive: setLokpriyaGive, take: lokpriyaTake, setTake: setLokpriyaTake, icon: <IconLokpriya className="w-8 h-8" /> },
-            { label: 'सुगम', give: sugamGive, setGive: setSugamGive, take: sugamTake, setTake: setSugamTake, icon: <IconSugam className="w-8 h-8" /> },
-            { label: 'एभरेस्ट', give: everestGive, setGive: setEverestGive, take: everestTake, setTake: setEverestTake, icon: <IconEverest className="w-8 h-8" /> },
-            { label: 'अन्य', give: otherGive, setGive: setOtherGive, take: otherTake, setTake: setOtherTake, icon: <IconOther className="w-8 h-8" /> }
-          ].map((brand, i) => (
+          {/* Cylinder Input Sections - Using dynamic labels */}
+          {cylinderSections.map((brand, i) => (
             <div key={i} className="bg-gray-50 rounded-xl p-5 mb-5 border border-gray-100">
               <div className="flex items-center gap-3 mb-4">
                 {brand.icon}
@@ -409,7 +491,7 @@ function DealerRefill({ showToast }) {
                 <div>
                   <label className="text-base font-bold text-green-700 mb-2 block flex items-center gap-1 uppercase">
                     <IconFilledCylinder className="w-5 h-5" />
-                    दियो
+                    {t('give', language)}
                   </label>
                   <input
                     type="text"
@@ -423,7 +505,7 @@ function DealerRefill({ showToast }) {
                 <div>
                   <label className="text-base font-bold text-red-700 mb-2 block flex items-center gap-1 uppercase">
                     <IconEmptyCylinder className="w-5 h-5" />
-                    लग्यो
+                    {t('take', language)}
                   </label>
                   <input
                     type="text"
@@ -438,31 +520,35 @@ function DealerRefill({ showToast }) {
             </div>
           ))}
 
+          {/* Notes */}
           <div className="mb-6">
-            <label className="block text-xl font-bold text-gray-700 mb-2">नोट (Notes)</label>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              {t('notes', language)}
+            </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows="2"
-              placeholder="केही जानकारी भए यहाँ लेख्नुहोस्..."
-              className="w-full p-4 text-lg border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none transition-all resize-none font-medium"
+              rows="1"
+              placeholder={''}
+              className="w-full p-4 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-all resize-none font-medium"
             />
           </div>
 
+          {/* Submit Button */}
           <button
             onClick={saveRefill}
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-black text-xl shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 min-h-[64px]"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-bold text-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
           >
             {loading ? (
               <>
-                <div className="w-7 h-7 border-4 border-white border-t-transparent rounded-full animate-spin" />
-                सेभ गर्दै...
+                <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                {t('saving', language)}...
               </>
             ) : (
               <>
-                <IconPlus className="w-7 h-7" />
-                रिफिल सुरक्षित गर्नुहोस्
+                <IconPlus className="w-6 h-6" />
+                {t('saveRefill', language)}
               </>
             )}
           </button>

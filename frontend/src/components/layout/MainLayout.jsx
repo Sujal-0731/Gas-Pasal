@@ -1,7 +1,6 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { MobileNav } from './MobileNav';
 
 export function MainLayout({ children, activeTab, onTabChange, onLogout, user }) {
   const [isMobile, setIsMobile] = React.useState(false);
@@ -20,26 +19,20 @@ export function MainLayout({ children, activeTab, onTabChange, onLogout, user })
       <Header user={user} onLogout={onLogout} />
       
       <div className="flex flex-1">
-        {/* ✅ Make sure user is passed here */}
         <Sidebar 
           activeTab={activeTab} 
           onTabChange={onTabChange} 
           onLogout={onLogout}
-          user={user}  // ← This is critical!
+          user={user}
         />
         
-        <main className="flex-1 overflow-x-auto pb-20 md:pb-0">
-          <div className={isMobile ? 'pt-2' : ''}>
-            <div className="p-4 md:p-6">
-              {children}
-            </div>
+        {/* Main content */}
+        <main className="flex-1 overflow-x-auto">
+          <div className={isMobile ? 'pt-2 pb-4' : 'p-4 md:p-6'}>
+            {children}
           </div>
         </main>
       </div>
-      
-      {isMobile && (
-        <MobileNav activeTab={activeTab} onTabChange={onTabChange} user={user} />
-      )}
     </div>
   );
 }

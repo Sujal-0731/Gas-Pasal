@@ -32,10 +32,6 @@ export function Sidebar({ activeTab, onTabChange, onLogout, user }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Debug: Log user to console
-  console.log('Sidebar received user:', user);
-  console.log('Is admin?', user?.role === 'admin');
-
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
