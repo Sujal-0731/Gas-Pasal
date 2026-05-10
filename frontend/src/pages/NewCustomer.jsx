@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { IconPlus, IconCheck, IconX, IconNewCustomer } from '../components/icons';
+import { getAuthHeader } from '../utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL;
-const PIN_CODE = import.meta.env.VITE_PIN_CODE;
 
 function NewCustomer({ showToast }) {
   const [name, setName] = useState('');
@@ -12,32 +12,52 @@ function NewCustomer({ showToast }) {
   const [loading, setLoading] = useState(false);
 
   const registerCustomer = async () => {
+    // Validate name
     if (!name.trim()) {
       showToast('कृपया ग्राहकको नाम लेख्नुहोस्', 'error');
       return;
     }
 
+    // Validate phone (if provided)
+    if (phone && phone.trim()) {
+      const phoneRegex = /^[9][6-9][0-9]{8}$/;
+      if (!phoneRegex.test(phone.trim())) {
+        showToast('फोन नम्बर गलत छ (९८xxxxxxxx वा ९७xxxxxxxx)', 'error');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/customers`, {
+      // ✅ CORRECT - POST request with body
+      const response = await fetch(`${API_URL}/customers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-pin': PIN_CODE
+          ...getAuthHeader()
         },
-        body: JSON.stringify({ name, phone, address, remarks })
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone || null,
+          address: address || null,
+          remarks: remarks || null
+        })
       });
-      const data = await res.json();
-      if (data.success) {
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
         showToast('ग्राहक दर्ता सफल भयो', 'success');
+        // Reset form
         setName('');
         setPhone('');
         setAddress('');
         setRemarks('');
       } else {
-        showToast(data.message, 'error');
+        showToast(data.message || 'ग्राहक दर्ता असफल', 'error');
       }
     } catch (error) {
+      console.error('Register error:', error);
       showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
     }
     setLoading(false);
@@ -55,7 +75,9 @@ function NewCustomer({ showToast }) {
 
       <div className="p-6 space-y-6">
         <div>
-          <label className="block text-lg font-bold text-gray-800 mb-2">पुरा नाम </label>
+          <label className="block text-lg font-bold text-gray-800 mb-2">
+            पुरा नाम <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={name}
@@ -66,7 +88,9 @@ function NewCustomer({ showToast }) {
         </div>
 
         <div>
-          <label className="block text-lg font-bold text-gray-800 mb-2">फोन नम्बर</label>
+          <label className="block text-lg font-bold text-gray-800 mb-2">
+            फोन नम्बर <span className="text-gray-400 text-sm">(वैकल्पिक)</span>
+          </label>
           <input
             type="tel"
             value={phone}
@@ -77,7 +101,9 @@ function NewCustomer({ showToast }) {
         </div>
 
         <div>
-          <label className="block text-lg font-bold text-gray-800 mb-2">ठेगाना</label>
+          <label className="block text-lg font-bold text-gray-800 mb-2">
+            ठेगाना <span className="text-gray-400 text-sm">(वैकल्पिक)</span>
+          </label>
           <input
             type="text"
             value={address}
@@ -88,7 +114,9 @@ function NewCustomer({ showToast }) {
         </div>
 
         <div>
-          <label className="block text-lg font-bold text-gray-800 mb-2">कैफियत</label>
+          <label className="block text-lg font-bold text-gray-800 mb-2">
+            कैफियत <span className="text-gray-400 text-sm">(वैकल्पिक)</span>
+          </label>
           <textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}

@@ -11,10 +11,9 @@ import {
   IconFilledCylinder,
   IconEmptyCylinder
 } from '../components/icons';
+import { getAuthHeader } from '../utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL;
-const PIN_CODE = import.meta.env.VITE_PIN_CODE;
-
 const cylinderOptions = ['लोकप्रिय', 'सुगम', 'एभरेस्ट', 'अन्य / Other'];
 
 function Queue({ showToast, onSelectCustomerFromQueue }) {
@@ -39,7 +38,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/queue`, {
-        headers: { 'x-pin': PIN_CODE }
+        headers: getAuthHeader()
       });
       const data = await res.json();
       if (data.success) {
@@ -55,7 +54,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
   const loadCustomers = async () => {
     try {
       const res = await fetch(`${API_URL}/customers`, {
-        headers: { 'x-pin': PIN_CODE }
+        headers: getAuthHeader()
       });
       const data = await res.json();
       if (data.success) {
@@ -78,7 +77,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-pin': PIN_CODE
+          ...getAuthHeader()
         },
         body: JSON.stringify({
           customerId: selectedCustomer.id,
@@ -112,7 +111,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
       try {
         const res = await fetch(`${API_URL}/queue/${queueId}`, {
           method: 'DELETE',
-          headers: { 'x-pin': PIN_CODE }
+          headers: getAuthHeader()
         });
         const data = await res.json();
         if (data.success) {
@@ -132,6 +131,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
 
   const handleSelectFromQueue = (item) => {
     setProcessingId(item.id);
+    // Remove from UI immediately
     setQueue(prevQueue => prevQueue.filter(q => q.id !== item.id));
     onSelectCustomerFromQueue(item);
     if (showToast) showToast(`${item.customer_name} चयन गरियो`, 'success');
@@ -261,8 +261,8 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                 ))}
               </div>
               
-              <div className="mt-4 p-4 bg-gray-50 rounded-xl text-center border border-gray-1000">
-                <span className="text-base font-bold text-black-500">
+              <div className="mt-4 p-4 bg-gray-50 rounded-xl text-center border border-gray-200">
+                <span className="text-base font-bold text-gray-700">
                   क्यूमा {queue.length} जना ग्राहक पर्खिरहेका छन्
                 </span>
               </div>

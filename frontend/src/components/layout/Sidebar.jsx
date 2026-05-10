@@ -7,23 +7,34 @@ import {
   IconQueue, 
   IconDealer, 
   IconStock,
-  IconLogout 
+  IconLogout,
+  IconSettings
 } from '../icons';
 
-const navigation = [
+// Base navigation for all users
+const baseNavigation = [
   { id: 'dashboard', name: 'ड्यासबोर्ड', nameEn: 'Dashboard', icon: IconDashboard },
-  { id: 'exchange', name: 'लेनदेन', nameEn: 'Transactions', icon: IconTransaction},
+  { id: 'exchange', name: 'लेनदेन', nameEn: 'Transactions', icon: IconTransaction },
   { id: 'customers', name: 'ग्राहक सूची', nameEn: 'Customer List', icon: IconCustomers },
   { id: 'newcustomer', name: 'नयाँ ग्राहक', nameEn: 'New Customer', icon: IconNewCustomer },
   { id: 'queue', name: 'पर्खने सूची', nameEn: 'Queue', icon: IconQueue },
   { id: 'dealer', name: 'डिलर रिफिल', nameEn: 'Dealer Refill', icon: IconDealer },
-  {id: 'refillhistory', name: 'रिफिल इतिहास', nameEn: 'Refill History', icon: IconTransaction },
+  { id: 'refillhistory', name: 'रिफिल इतिहास', nameEn: 'Refill History', icon: IconTransaction },
   { id: 'stock', name: 'स्टक', nameEn: 'Stock', icon: IconStock },
 ];
 
-export function Sidebar({ activeTab, onTabChange, onLogout }) {
+// Admin only navigation
+const adminNavigation = [
+  { id: 'admin', name: 'प्रशासक प्यानल', nameEn: 'Admin Panel', icon: IconSettings },
+];
+
+export function Sidebar({ activeTab, onTabChange, onLogout, user }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Debug: Log user to console
+  console.log('Sidebar received user:', user);
+  console.log('Is admin?', user?.role === 'admin');
 
   useEffect(() => {
     const checkMobile = () => {
@@ -54,6 +65,10 @@ export function Sidebar({ activeTab, onTabChange, onLogout }) {
       setIsOpen(false);
     }
   };
+
+  // Determine which navigation items to show
+  const isAdmin = user?.role === 'admin';
+  const navigation = [...baseNavigation, ...(isAdmin ? adminNavigation : [])];
 
   return (
     <>
@@ -98,7 +113,6 @@ export function Sidebar({ activeTab, onTabChange, onLogout }) {
             <span className="font-semibold text-gray-900 text-lg">Anam Store</span>
           </div>
           
-          {/* Close button inside sidebar (mobile only) */}
           {isMobile && (
             <button
               onClick={() => setIsOpen(false)}

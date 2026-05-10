@@ -1,34 +1,147 @@
+// backend/index.js
 process.env.TZ = 'Asia/Kathmandu';
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { createClient } = require('@supabase/supabase-js');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const logger = require('./utils/logger');
 
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const customerRoutes = require('./routes/customerRoutes');
+const queueRoutes = require('./routes/queueRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
+const stockRoutes = require('./routes/stockRoutes');
+const refillRoutes = require('./routes/refillRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Rate limiter
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { success: false, message: 'Too many requests, please try again later.' }
+});
+
+// Middleware
 app.use(cors());
 app.use(express.json());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  }
+}));
+app.use('/api/', limiter);
+
+// Health check (public)
+app.get('/api/health', (req, res) => {
+  res.json({ success: true, message: 'API is running' });
+});
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/queue', queueRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/stock', stockRoutes);
+app.use('/api/refills', refillRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  logger.error('Unhandled error:', err);
+  res.status(500).json({ 
+    success: false, 
+    message: process.env.NODE_ENV === 'production' 
+      ? 'Internal server error' 
+      : err.message 
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
+  logger.info(`🚀 Server running on port ${PORT}`);
+  logger.info(`📍 Mode: ${process.env.NODE_ENV || 'development'}`);
+});
+
+/*process.env.TZ = 'Asia/Kathmandu';
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const logger = require('./utils/logger');
+const { 
+  login, 
+  authenticate, 
+  authorize, 
+  changePassword, 
+  getCurrentUser,
+  logout 
+} = require('./middleware/auth');
+const { 
+  validateCustomerInput, 
+  validateTransactionInput ,
+  validateDashboardRequest
+} = require('./middleware/validate');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per window
+  message: { success: false, message: 'Too many requests, please try again later.' }
+});
+
+app.use(cors());
+app.use(express.json());
+app.use('/api/', limiter);
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
+}));
+app.post('/api/auth/login', login);
+app.use('/api/', authenticate);
+app.get('/api/auth/me', getCurrentUser);
+app.post('/api/auth/change-password', changePassword);
+app.post('/api/auth/logout', logout);
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
 
-function verifyPin(req, res, next) {
-  const pin = req.headers['x-pin'];
-  if (pin === process.env.PIN_CODE) {
-    next();
-  } else {
-    res.status(401).json({ success: false, message: 'Invalid PIN' });
-  }
-}
 
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'API is running' });
 });
 
-app.get('/api/dashboard', verifyPin, async (req, res) => {
+app.get('/api/dashboard', authenticate, limiter, validateDashboardRequest, async (req, res) => {
   try {
     // Get all transactions in one query (with customer info)
     const { data: transactions, error: transError } = await supabase
@@ -109,13 +222,13 @@ app.get('/api/dashboard', verifyPin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Dashboard error:', error);
+    logger.error('Dashboard error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 // ========== CUSTOMER ROUTES ==========
 
-app.get('/api/customers', verifyPin, async (req, res) => {
+app.get('/api/customers', authenticate, async (req, res) => {
   try {
     const { search } = req.query;
     let query = supabase.from('customers').select('*');
@@ -130,7 +243,7 @@ app.get('/api/customers', verifyPin, async (req, res) => {
   }
 });
 
-app.post('/api/customers', verifyPin, async (req, res) => {
+app.post('/api/customers', authenticate,limiter, validateCustomerInput,async (req, res) => {
   try {
     const { name, phone, address, remarks } = req.body;
     if (!name || name.trim() === '') {
@@ -176,7 +289,7 @@ app.post('/api/customers', verifyPin, async (req, res) => {
 
 // ========== TRANSACTION ROUTES ==========
 
-app.post('/api/transactions', verifyPin, async (req, res) => {
+app.post('/api/transactions',  authenticate, limiter, validateTransactionInput, async (req, res) => {
   try {
     const { customerName, emptyCylinder, filledCylinder, remarks, queueId } = req.body;
     
@@ -306,7 +419,7 @@ app.post('/api/transactions', verifyPin, async (req, res) => {
   }
 });
 
-app.get('/api/customers/:name/history', verifyPin, async (req, res) => {
+app.get('/api/customers/:name/history', authenticate, async (req, res) => {
   try {
     const { name } = req.params;
     const { data: customer, error: customerError } = await supabase
@@ -362,7 +475,7 @@ app.get('/api/customers/:name/history', verifyPin, async (req, res) => {
 
 // ========== STOCK ROUTES ==========
 
-app.get('/api/stock', verifyPin, async (req, res) => {
+app.get('/api/stock', authenticate, async (req, res) => {
   try {
     const { data, error } = await supabase.from('stock').select('*').order('cylinder_type');
     if (error) throw error;
@@ -378,7 +491,7 @@ app.get('/api/stock', verifyPin, async (req, res) => {
 
 // ========== DEALER REFILL ROUTES ==========
 
-app.post('/api/refills', verifyPin, async (req, res) => {
+app.post('/api/refills', authenticate, async (req, res) => {
   try {
     const { 
       refillDate, 
@@ -398,13 +511,13 @@ app.post('/api/refills', verifyPin, async (req, res) => {
       exchange_take_other
     } = req.body;
 
-    console.log('=== REFILL DATA RECEIVED ===');
-    console.log('Mode:', mode || 'normal');
+    logger.info('=== REFILL DATA RECEIVED ===');
+    logger.info('Mode:', mode || 'normal');
     
     // ========== STEP 1: VALIDATE STOCK (BEFORE INSERTING ANYTHING) ==========
     if (mode === 'exchange') {
       // EXCHANGE MODE VALIDATION
-      console.log('\n🔍 Validating stock for EXCHANGE mode...');
+      logger.info('\n🔍 Validating stock for EXCHANGE mode...');
       
       const cylinders = [
         { name: 'लोकप्रिय', take: Number(exchange_take_lokpriya) || 0 },
@@ -425,19 +538,19 @@ app.post('/api/refills', verifyPin, async (req, res) => {
         const currentEmpty = stock?.empty_count || 0;
         
         if (cyl.take > currentEmpty) {
-          console.error(`❌ Stock validation failed for ${cyl.name}`);
+          logger.error(`❌ Stock validation failed for ${cyl.name}`);
           return res.status(400).json({ 
             success: false, 
             message: `${cyl.name} को खाली स्टक छैन (उपलब्ध: ${currentEmpty}, चाहिने: ${cyl.take})` 
           });
         }
         
-        console.log(`✅ ${cyl.name}: Available ${currentEmpty}, Need to give ${cyl.take} - OK`);
+        logger.info(`✅ ${cyl.name}: Available ${currentEmpty}, Need to give ${cyl.take} - OK`);
       }
       
     } else {
       // NORMAL MODE VALIDATION
-      console.log('\n🔍 Validating stock for NORMAL mode...');
+      logger.info('\n🔍 Validating stock for NORMAL mode...');
       
       const cylinders = [
         { name: 'लोकप्रिय', take: Number(lokpriyaEmpty) || 0 },
@@ -458,19 +571,19 @@ app.post('/api/refills', verifyPin, async (req, res) => {
         const currentEmpty = stock?.empty_count || 0;
         
         if (cyl.take > currentEmpty) {
-          console.error(`❌ Stock validation failed for ${cyl.name}`);
+          logger.error(`❌ Stock validation failed for ${cyl.name}`);
           return res.status(400).json({ 
             success: false, 
             message: `${cyl.name} को खाली स्टक छैन (उपलब्ध: ${currentEmpty}, चाहिने: ${cyl.take})` 
           });
         }
         
-        console.log(`✅ ${cyl.name}: Available ${currentEmpty}, Need to give ${cyl.take} - OK`);
+        logger.info(`✅ ${cyl.name}: Available ${currentEmpty}, Need to give ${cyl.take} - OK`);
       }
     }
     
     // ========== STEP 2: INSERT REFILL RECORD (ONLY IF STOCK IS SUFFICIENT) ==========
-    console.log('\n✅ Stock validation passed. Inserting refill record...');
+    logger.info('\n✅ Stock validation passed. Inserting refill record...');
     
     const insertData = {
       refill_date: refillDate,
@@ -519,15 +632,15 @@ app.post('/api/refills', verifyPin, async (req, res) => {
       .insert([insertData]);
     
     if (insertError) {
-      console.error('Insert error:', insertError);
+      logger.error('Insert error:', insertError);
       throw insertError;
     }
     
-    console.log('✅ Refill record inserted');
+    logger.info('✅ Refill record inserted');
     
     // ========== STEP 3: UPDATE STOCK ==========
     if (mode === 'exchange') {
-      console.log('\n🔄 Updating stock for EXCHANGE mode...');
+      logger.info('\n🔄 Updating stock for EXCHANGE mode...');
       
       const cylinders = [
         { name: 'लोकप्रिय', give: Number(exchange_give_lokpriya) || 0, take: Number(exchange_take_lokpriya) || 0 },
@@ -548,7 +661,7 @@ app.post('/api/refills', verifyPin, async (req, res) => {
         let currentEmpty = stock?.empty_count || 0;
         let newEmpty = currentEmpty + cyl.give - cyl.take;
         
-        console.log(`   ${cyl.name}: ${currentEmpty} + ${cyl.give} - ${cyl.take} = ${newEmpty}`);
+        logger.info(`   ${cyl.name}: ${currentEmpty} + ${cyl.give} - ${cyl.take} = ${newEmpty}`);
         
         if (stock) {
           await supabase
@@ -563,7 +676,7 @@ app.post('/api/refills', verifyPin, async (req, res) => {
       }
       
     } else {
-      console.log('\n🔄 Updating stock for NORMAL mode...');
+      logger.info('\n🔄 Updating stock for NORMAL mode...');
       
       const cylinders = [
         { name: 'लोकप्रिय', give: Number(lokpriyaFilled) || 0, take: Number(lokpriyaEmpty) || 0 },
@@ -586,7 +699,7 @@ app.post('/api/refills', verifyPin, async (req, res) => {
         let newFilled = currentFilled + cyl.give;
         let newEmpty = currentEmpty - cyl.take;
         
-        console.log(`   ${cyl.name}: Filled ${currentFilled}→${newFilled}, Empty ${currentEmpty}→${newEmpty}`);
+        logger.info(`   ${cyl.name}: Filled ${currentFilled}→${newFilled}, Empty ${currentEmpty}→${newEmpty}`);
         
         if (stock) {
           await supabase
@@ -601,15 +714,15 @@ app.post('/api/refills', verifyPin, async (req, res) => {
       }
     }
     
-    console.log('\n✅ REFILL COMPLETED SUCCESSFULLY');
+    logger.info('\n✅ REFILL COMPLETED SUCCESSFULLY');
     res.json({ success: true, message: mode === 'exchange' ? 'खाली साटासाट सफलतापूर्वक रेकर्ड गरियो' : 'रिफिल सफलतापूर्वक रेकर्ड गरियो' });
     
   } catch (error) {
-    console.error('❌ Dealer refill error:', error);
+    logger.error('❌ Dealer refill error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
-app.get('/api/refills', verifyPin, async (req, res) => {
+app.get('/api/refills', authenticate, async (req, res) => {
   try {
     const { data, error } = await supabase.from('dealer_refills').select('*').order('refill_date', { ascending: false });
     if (error) throw error;
@@ -621,7 +734,7 @@ app.get('/api/refills', verifyPin, async (req, res) => {
 
 // ========== QUEUE ROUTES ==========
 
-app.get('/api/queue', verifyPin, async (req, res) => {
+app.get('/api/queue', authenticate, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('queue')
@@ -636,7 +749,7 @@ app.get('/api/queue', verifyPin, async (req, res) => {
   }
 });
 
-app.post('/api/queue', verifyPin, async (req, res) => {
+app.post('/api/queue', authenticate, async (req, res) => {
   try {
     const { customerId, customerName, emptyCylinder, notes } = req.body;
     
@@ -679,7 +792,7 @@ app.post('/api/queue', verifyPin, async (req, res) => {
   }
 });
 
-app.delete('/api/queue/:id', verifyPin, async (req, res) => {
+app.delete('/api/queue/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -726,6 +839,11 @@ app.delete('/api/queue/:id', verifyPin, async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 PIN Code: ${process.env.PIN_CODE}`);
+  if (process.env.NODE_ENV !== 'production') {
+    logger.info(`🚀 Server running on port ${PORT}`);
+    logger.info(`📍 Mode: ${process.env.NODE_ENV || 'development'}`);
+  } else {
+    logger.info(`🚀 Server running in production mode on port ${PORT}`);
+  }
 });
+*/

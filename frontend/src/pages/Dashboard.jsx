@@ -14,9 +14,9 @@ import {
   IconReturn,
   IconNewPurchase
 } from '../components/icons';
+import { getAuthHeader } from '../utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL;
-const PIN_CODE = import.meta.env.VITE_PIN_CODE;
 
 export function Dashboard({ showToast, onNavigate }) {
   const [dashboardData, setDashboardData] = useState(null);
@@ -29,9 +29,8 @@ export function Dashboard({ showToast, onNavigate }) {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // ✅ SINGLE API CALL instead of multiple calls
       const response = await fetch(`${API_URL}/dashboard`, {
-        headers: { 'x-pin': PIN_CODE }
+        headers: getAuthHeader()
       });
       
       const data = await response.json();
@@ -83,7 +82,7 @@ export function Dashboard({ showToast, onNavigate }) {
         <p className="text-sm text-gray-500 mt-1">वास्तविक तथ्याङ्क</p>
       </div>
 
-      {/* Stats Grid - Larger cards with bigger text */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
@@ -93,6 +92,18 @@ export function Dashboard({ showToast, onNavigate }) {
             </div>
             <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
               <IconUsers className="w-5 h-5 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">पर्खने सूची</p>
+              <p className="text-2xl font-bold text-purple-600">{stats.activeQueue}</p>
+            </div>
+            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+              <IconQueue className="w-5 h-5 text-purple-600" />
             </div>
           </div>
         </div>
@@ -120,21 +131,22 @@ export function Dashboard({ showToast, onNavigate }) {
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">यो महिनाको बिक्री</p>
-              <p className="text-2xl font-bold text-orange-600">{stats.monthlySales}</p>
-            </div>
-            <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
-              <IconTrendingUp className="w-5 h-5 text-orange-600" />
-            </div>
+      {/* Monthly Sales Card */}
+      <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-white/80">यो महिनाको बिक्री</p>
+            <p className="text-3xl font-bold text-white">{stats.monthlySales}</p>
+          </div>
+          <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+            <IconTrendingUp className="w-6 h-6 text-white" />
           </div>
         </div>
       </div>
 
-      {/* Stock Overview - Larger text */}
+      {/* Stock Overview */}
       <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-900">स्टक अवस्था</h3>
@@ -149,32 +161,32 @@ export function Dashboard({ showToast, onNavigate }) {
         <StockProgress stock={stock} />
       </div>
 
-      {/* Quick Actions - Larger buttons */}
+      {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={() => onNavigate?.('exchange')}
-          className="bg-gray-100 text-gray-700 py-4 rounded-xl font-medium text-base active:bg-gray-200 transition flex items-center justify-center gap-2"
+          className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-medium text-base transition flex items-center justify-center gap-2"
         >
-          <IconTransaction className="w-5 h-5 text-gray-500" />
+          <IconTransaction className="w-5 h-5" />
           नयाँ लेनदेन
         </button>
         <button
           onClick={() => onNavigate?.('queue')}
-          className="bg-gray-100 text-gray-700 py-4 rounded-xl font-medium text-base active:bg-gray-200 transition flex items-center justify-center gap-2"
+          className="bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-medium text-base transition flex items-center justify-center gap-2"
         >
-          <IconQueue className="w-5 h-5 text-gray-500" />
+          <IconQueue className="w-5 h-5" />
           क्यू ({stats.activeQueue})
         </button>
         <button
           onClick={() => onNavigate?.('customers')}
-          className="bg-gray-100 text-gray-700 py-4 rounded-xl font-medium text-base active:bg-gray-200 transition flex items-center justify-center gap-2 col-span-2"
+          className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-4 rounded-xl font-medium text-base transition flex items-center justify-center gap-2 col-span-2"
         >
           <IconNewCustomer className="w-5 h-5 text-gray-500" />
           नयाँ ग्राहक
         </button>
       </div>
 
-      {/* Recent Transactions - Larger text */}
+      {/* Recent Transactions */}
       <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-900">हालैको लेनदेन</h3>
@@ -187,17 +199,21 @@ export function Dashboard({ showToast, onNavigate }) {
         </div>
         
         {recentTransactions.length === 0 ? (
-          <div className="text-center text-gray-400 text-base py-6">कुनै लेनदेन छैन</div>
+          <div className="text-center text-gray-400 text-base py-6">
+            <IconTransaction className="w-12 h-12 mx-auto mb-2 opacity-30" />
+            कुनै लेनदेन छैन
+          </div>
         ) : (
           <div className="space-y-3">
             {recentTransactions.map((transaction, idx) => (
               <div key={idx} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
-                <div>
+                <div className="flex-1">
                   <p className="text-base font-medium text-gray-900">{transaction.customer_name}</p>
-                  <p className="text-xs text-gray-400 mt-1">{transaction.formatted_date || formatDate(transaction.created_at)}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {transaction.formatted_date || formatDate(transaction.created_at)}
+                  </p>
                 </div>
                 <div className="text-right">
-                  {/* Filled Cylinder */}
                   {transaction.filled_cylinder !== 'कोही छैन' ? (
                     <div className="flex items-center gap-1 justify-end">
                       <IconFilledCylinder className="w-4 h-4 text-green-600" />
@@ -212,18 +228,17 @@ export function Dashboard({ showToast, onNavigate }) {
                     </div>
                   )}
                   
-                  {/* Empty Cylinder */}
                   {transaction.empty_cylinder !== 'कोही छैन' ? (
                     <div className="flex items-center gap-1 justify-end mt-1">
                       <IconEmptyCylinder className="w-4 h-4 text-red-500" />
-                      <span className="text-xs text-red-500">
+                      <span className="text-xs text-red-500 font-medium">
                         {transaction.empty_cylinder}
                       </span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1 justify-end mt-1">
                       <IconNewPurchase className="w-4 h-4 text-orange-500" />
-                      <span className="text-xs text-orange-500">नयाँ खरिद</span>
+                      <span className="text-xs text-orange-500 font-medium">नयाँ खरिद</span>
                     </div>
                   )}
                 </div>

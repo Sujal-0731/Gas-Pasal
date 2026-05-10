@@ -1,14 +1,21 @@
 import React from 'react';
-import { IconDashboard, IconUsers, IconTransactions, IconQueue, IconStock } from '../icons';
+import { IconDashboard, IconUsers, IconTransaction, IconQueue, IconStock, IconSettings } from '../icons';
 
-export function MobileNav({ activeTab, onTabChange }) {
+export function MobileNav({ activeTab, onTabChange, user }) {
+  const isAdmin = user?.role === 'admin';
+  
   const navItems = [
     { id: 'dashboard', label: 'ड्यासबोर्ड', icon: IconDashboard },
-    { id: 'exchange', label: 'लेनदेन', icon: IconTransactions },
+    { id: 'exchange', label: 'लेनदेन', icon: IconTransaction },
     { id: 'customers', label: 'ग्राहक', icon: IconUsers },
     { id: 'queue', label: 'क्यू', icon: IconQueue },
     { id: 'stock', label: 'स्टक', icon: IconStock },
   ];
+  
+  // Add admin panel for admin users
+  if (isAdmin) {
+    navItems.push({ id: 'admin', label: 'प्रशासक', icon: IconSettings });
+  }
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center py-2 px-4 z-50">

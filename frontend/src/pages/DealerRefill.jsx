@@ -16,9 +16,9 @@ import {
   IconCheck,
   IconX
 } from '../components/icons';
+import { getAuthHeader } from '../utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL;
-const PIN_CODE = import.meta.env.VITE_PIN_CODE;
 
 function DealerRefill({ showToast }) {
   const [refillDate, setRefillDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -43,10 +43,10 @@ function DealerRefill({ showToast }) {
 
   const loadRefillHistory = async () => {
     try {
-      const res = await fetch(`${API_URL}/refills`, {
-        headers: { 'x-pin': PIN_CODE }
+      const response = await fetch(`${API_URL}/refills`, {
+        headers: getAuthHeader()
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setRefills(data.refills);
       }
@@ -90,20 +90,18 @@ function DealerRefill({ showToast }) {
         };
       }
       
-      const res = await fetch(`${API_URL}/refills`, {
+      const response = await fetch(`${API_URL}/refills`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-pin': PIN_CODE
+          ...getAuthHeader()
         },
         body: JSON.stringify(sendData)
       });
       
-      // ✅ IMPORTANT: Parse the response first
-      const data = await res.json();
+      const data = await response.json();
       
-      // ✅ Check if response is successful
-      if (res.ok && data.success) {
+      if (response.ok && data.success) {
         showToast(mode === 'normal' ? 'रिफिल सुरक्षित गरियो' : 'खाली साटासाट सुरक्षित गरियो', 'success');
         
         // Reset form
@@ -121,14 +119,12 @@ function DealerRefill({ showToast }) {
         await loadRefillHistory();
         
       } else {
-        // ✅ Show the error message from backend
         const errorMessage = data.message || (mode === 'normal' ? 'रिफिल सेभ गर्न असफल' : 'साटासाट सेभ गर्न असफल');
         showToast(errorMessage, 'error');
       }
       
     } catch (error) {
       console.error('Save error:', error);
-      // ✅ Show network error
       showToast('इन्टरनेट जडान जाँच गर्नुहोस्', 'error');
     }
     setLoading(false);
@@ -143,15 +139,6 @@ function DealerRefill({ showToast }) {
   };
 
   const formatValue = (val) => val === 0 ? '' : val;
-
-  const getCylinderIcon = (type) => {
-    switch(type) {
-      case 'lokpriya': return <IconLokpriya />;
-      case 'sugam': return <IconSugam />;
-      case 'everest': return <IconEverest />;
-      default: return <IconOther />;
-    }
-  };
 
   const getTotalStats = () => {
     const totalFilled = refills.reduce((sum, r) => sum + (r.lokpriya_filled || 0) + (r.sugam_filled || 0) + (r.everest_filled || 0) + (r.other_filled || 0), 0);
@@ -201,61 +188,114 @@ function DealerRefill({ showToast }) {
                     <div className="flex items-center gap-2 text-gray-700 mb-3 pb-2 border-b border-gray-200">
                       <IconCalendar className="w-5 h-5" />
                       <span className="font-bold text-lg">{r.refill_date}</span>
+                      {r.mode === 'exchange' && (
+                        <span className="ml-auto text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full">
+                          साटासाट
+                        </span>
+                      )}
                     </div>
                     {r.mode === 'exchange' ? (
                       <>
                         <div className="space-y-2 text-base">
-                          {(r.exchange_give_lokpriya !== 0 || r.lokpriya_empty !== 0) && (
-                            <div className="flex items-center gap-2">
-                              <IconLokpriya className="w-7 h-7" />
-                              <span>लोकप्रिय: दियो {r.exchange_give_lokpriya || 0}, लग्यो {r.lokpriya_empty || 0}</span>
+                          {(r.exchange_give_lokpriya !== 0 || r.exchange_take_lokpriya !== 0) && (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <IconLokpriya className="w-6 h-6" />
+                                <span>लोकप्रिय</span>
+                              </div>
+                              <div className="flex gap-3">
+                                <span className="text-green-600">+{r.exchange_give_lokpriya || 0}</span>
+                                <span className="text-red-600">-{r.exchange_take_lokpriya || 0}</span>
+                              </div>
                             </div>
                           )}
-                          {(r.exchange_give_sugam !== 0 || r.sugam_empty !== 0) && (
-                            <div className="flex items-center gap-2">
-                              <IconSugam className="w-7 h-7" />
-                              <span>सुगम: दियो {r.exchange_give_sugam || 0}, लग्यो {r.sugam_empty || 0}</span>
+                          {(r.exchange_give_sugam !== 0 || r.exchange_take_sugam !== 0) && (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <IconSugam className="w-6 h-6" />
+                                <span>सुगम</span>
+                              </div>
+                              <div className="flex gap-3">
+                                <span className="text-green-600">+{r.exchange_give_sugam || 0}</span>
+                                <span className="text-red-600">-{r.exchange_take_sugam || 0}</span>
+                              </div>
                             </div>
                           )}
-                          {(r.exchange_give_everest !== 0 || r.everest_empty !== 0) && (
-                            <div className="flex items-center gap-2">
-                              <IconEverest className="w-7 h-7" />
-                              <span>एभरेस्ट: दियो {r.exchange_give_everest || 0}, लग्यो {r.everest_empty || 0}</span>
+                          {(r.exchange_give_everest !== 0 || r.exchange_take_everest !== 0) && (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <IconEverest className="w-6 h-6" />
+                                <span>एभरेस्ट</span>
+                              </div>
+                              <div className="flex gap-3">
+                                <span className="text-green-600">+{r.exchange_give_everest || 0}</span>
+                                <span className="text-red-600">-{r.exchange_take_everest || 0}</span>
+                              </div>
                             </div>
                           )}
-                          {(r.exchange_give_other !== 0 || r.other_empty !== 0) && (
-                            <div className="flex items-center gap-2">
-                              <IconOther className="w-7 h-7" />
-                              <span>अन्य: दियो {r.exchange_give_other || 0}, लग्यो {r.other_empty || 0}</span>
+                          {(r.exchange_give_other !== 0 || r.exchange_take_other !== 0) && (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <IconOther className="w-6 h-6" />
+                                <span>अन्य</span>
+                              </div>
+                              <div className="flex gap-3">
+                                <span className="text-green-600">+{r.exchange_give_other || 0}</span>
+                                <span className="text-red-600">-{r.exchange_take_other || 0}</span>
+                              </div>
                             </div>
                           )}
                         </div>
-                        <div className="text-sm font-bold text-purple-600 mt-2">खाली साटासाट</div>
+                        <div className="text-xs font-medium text-purple-600 mt-2">खाली साटासाट</div>
                       </>
                     ) : (
                       <div className="space-y-2 text-base">
                         {(r.lokpriya_filled !== 0 || r.lokpriya_empty !== 0) && (
-                          <div className="flex items-center gap-2 font-medium">
-                            <IconFilledCylinder className="w-5 h-5 text-green-600" />
-                            <span>लोकप्रिय: दियो {r.lokpriya_filled || 0}, लग्यो {r.lokpriya_empty || 0}</span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <IconLokpriya className="w-6 h-6" />
+                              <span>लोकप्रिय</span>
+                            </div>
+                            <div className="flex gap-3">
+                              <span className="text-green-600">+{r.lokpriya_filled || 0}</span>
+                              <span className="text-red-600">-{r.lokpriya_empty || 0}</span>
+                            </div>
                           </div>
                         )}
                         {(r.sugam_filled !== 0 || r.sugam_empty !== 0) && (
-                          <div className="flex items-center gap-2 font-medium">
-                            <IconFilledCylinder className="w-5 h-5 text-green-600" />
-                            <span>सुगम: दियो {r.sugam_filled || 0}, लग्यो {r.sugam_empty || 0}</span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <IconSugam className="w-6 h-6" />
+                              <span>सुगम</span>
+                            </div>
+                            <div className="flex gap-3">
+                              <span className="text-green-600">+{r.sugam_filled || 0}</span>
+                              <span className="text-red-600">-{r.sugam_empty || 0}</span>
+                            </div>
                           </div>
                         )}
                         {(r.everest_filled !== 0 || r.everest_empty !== 0) && (
-                          <div className="flex items-center gap-2 font-medium">
-                            <IconFilledCylinder className="w-5 h-5 text-green-600" />
-                            <span>एभरेस्ट: दियो {r.everest_filled || 0}, लग्यो {r.everest_empty || 0}</span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <IconEverest className="w-6 h-6" />
+                              <span>एभरेस्ट</span>
+                            </div>
+                            <div className="flex gap-3">
+                              <span className="text-green-600">+{r.everest_filled || 0}</span>
+                              <span className="text-red-600">-{r.everest_empty || 0}</span>
+                            </div>
                           </div>
                         )}
                         {(r.other_filled !== 0 || r.other_empty !== 0) && (
-                          <div className="flex items-center gap-2 font-medium">
-                            <IconFilledCylinder className="w-5 h-5 text-green-600" />
-                            <span>अन्य: दियो {r.other_filled || 0}, लग्यो {r.other_empty || 0}</span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <IconOther className="w-6 h-6" />
+                              <span>अन्य</span>
+                            </div>
+                            <div className="flex gap-3">
+                              <span className="text-green-600">+{r.other_filled || 0}</span>
+                              <span className="text-red-600">-{r.other_empty || 0}</span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -288,6 +328,12 @@ function DealerRefill({ showToast }) {
               <h2 className="text-2xl font-bold text-white">डिलर रिफिल</h2>
               <p className="text-white/80 text-lg mt-1">विवरण भर्नुहोस्</p>
             </div>
+            <button
+              onClick={() => setShowHistory(true)}
+              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              इतिहास हेर्नुहोस्
+            </button>
           </div>
         </div>
 
@@ -323,14 +369,14 @@ function DealerRefill({ showToast }) {
             {mode === 'normal' ? (
               <>
                 <p className="font-bold mb-2 text-xl">सामान्य रिफिल:</p>
-                <p className="text-gray-700">• <span className="text-green-600 font-bold">दियो (Give)</span> → डिलरले दिएको भरिएको ग्यास</p>
-                <p className="text-gray-700">• <span className="text-red-600 font-bold">लग्यो (Take)</span> → डिलरले लगेको खाली सिलिन्डर</p>
+                <p className="text-gray-700">• <span className="text-green-600 font-bold">दियो (Give)</span> → डिलरले दिएको भरिएको ग्यास (स्टक बढ्छ)</p>
+                <p className="text-gray-700">• <span className="text-red-600 font-bold">लग्यो (Take)</span> → डिलरले लगेको खाली सिलिन्डर (स्टक घट्छ)</p>
               </>
             ) : (
               <>
                 <p className="font-bold mb-2 text-xl">खाली साटासाट:</p>
-                <p className="text-gray-700">• <span className="text-green-600 font-bold">दियो (Give)</span> → डिलरले दिएको खाली सिलिन्डर</p>
-                <p className="text-gray-700">• <span className="text-red-600 font-bold">लग्यो (Take)</span> → डिलरले लगेको खाली सिलिन्डर</p>
+                <p className="text-gray-700">• <span className="text-green-600 font-bold">दियो (Give)</span> → डिलरले दिएको खाली सिलिन्डर (स्टक बढ्छ)</p>
+                <p className="text-gray-700">• <span className="text-red-600 font-bold">आयो (Take)</span> → डिलरले लगेको खाली सिलिन्डर (स्टक घट्छ)</p>
               </>
             )}
           </div>
@@ -348,7 +394,6 @@ function DealerRefill({ showToast }) {
             />
           </div>
 
-          {/* Input Sections (Applied to all Brand Blocks) */}
           {[
             { label: 'लोकप्रिय', give: lokpriyaGive, setGive: setLokpriyaGive, take: lokpriyaTake, setTake: setLokpriyaTake, icon: <IconLokpriya className="w-8 h-8" /> },
             { label: 'सुगम', give: sugamGive, setGive: setSugamGive, take: sugamTake, setTake: setSugamTake, icon: <IconSugam className="w-8 h-8" /> },

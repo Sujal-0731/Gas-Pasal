@@ -8,10 +8,9 @@ import {
   IconCheck,
   IconX
 } from '../components/icons';
+import { getAuthHeader } from '../utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL;
-const PIN_CODE = import.meta.env.VITE_PIN_CODE;
-
 const cylinderOptions = ['लोकप्रिय', 'सुगम', 'एभरेस्ट', 'अन्य / Other', 'कोही छैन'];
 
 function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
@@ -27,10 +26,15 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
 
   useEffect(() => {
     if (queueCustomer) {
-      setSelectedCustomer({ name: queueCustomer.name });
-      setSearchTerm(queueCustomer.name);
-      setEmptyCylinder(queueCustomer.emptyCylinder);
-      showToast(`क्यूबाट: ${queueCustomer.name}`, 'success');
+      // ✅ Fixed: Store complete customer info including queueId
+      setSelectedCustomer({ 
+        name: queueCustomer.customer_name,
+        id: queueCustomer.customer_id,
+        queueId: queueCustomer.id
+      });
+      setSearchTerm(queueCustomer.customer_name);
+      setEmptyCylinder(queueCustomer.empty_cylinder);
+      showToast(`क्यूबाट: ${queueCustomer.customer_name}`, 'success');
     }
   }, [queueCustomer, showToast]);
 
@@ -61,7 +65,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/customers?search=${encodeURIComponent(searchTerm)}`, {
-        headers: { 'x-pin': PIN_CODE }
+        headers: getAuthHeader()
       });
       const data = await res.json();
       if (data.success) {
@@ -92,38 +96,54 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
       return;
     }
 
+    // ✅ Added: Validate at least one cylinder is selected
+    if ((!emptyCylinder || emptyCylinder === 'कोही छैन') && 
+        (!filledCylinder || filledCylinder === 'कोही छैन')) {
+      showToast('कृपया कम्तीमा एउटा सिलिन्डर चयन गर्नुहोस्', 'error');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/transactions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-pin': PIN_CODE
+          ...getAuthHeader()
         },
         body: JSON.stringify({
           customerName: selectedCustomer.name,
           emptyCylinder,
           filledCylinder,
           remarks,
-          queueId: queueCustomer?.queueId || null
+          queueId: queueCustomer?.id || null  // ✅ Fixed: Use correct property
         })
       });
+      
       const data = await res.json();
-      if (data.success) {
+      
+      if (res.ok && data.success) {
         showToast('लेनदेन सफलतापूर्वक रेकर्ड गरियो', 'success');
         setRemarks('');
         
+        // ✅ Fixed: Clear queue customer after successful transaction
         if (queueCustomer && onClearQueueCustomer) {
           onClearQueueCustomer();
         }
         
+        // Reset form for new transaction
         if (!queueCustomer) {
           setSelectedCustomer(null);
           setSearchTerm('');
           setSearchResults([]);
         }
+        
+        // ✅ Reset cylinder selections
+        setEmptyCylinder('लोकप्रिय');
+        setFilledCylinder('लोकप्रिय');
+        
       } else {
-        showToast(data.message, 'error');
+        showToast(data.message || 'लेनदेन रेकर्ड गर्न असफल', 'error');
       }
     } catch (error) {
       console.error('Transaction error:', error);
@@ -167,8 +187,8 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         {/* Header Section */}
         <div className="p-4 bg-gradient-to-r from-blue-700 to-blue-500 border-b">
-          <h2 className="text-2xl font-bold text-white">लेनदेन </h2>
-          <p className="text-blue-50 text-base mt-1">विवरण भर्नुहोस्</p>
+          <h2 className="text-2xl font-bold text-white">लेनदेन</h2>
+          <p className="text-blue-50 text-base mt-1">सिलिन्डर विवरण भर्नुहोस्</p>
         </div>
 
         <div className="p-5">
@@ -186,7 +206,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
               <p className="text-xl font-bold text-gray-900">{selectedCustomer?.name}</p>
               {queueCustomer && (
                 <p className="text-base text-purple-800 mt-1 font-semibold">
-                  ल्याएको सिलिन्डर: {queueCustomer.emptyCylinder}
+                  ल्याएको सिलिन्डर: {queueCustomer.empty_cylinder}
                 </p>
               )}
             </div>
@@ -194,7 +214,9 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
 
           {/* Search Section */}
           <div className="mb-6">
-            <label className="block text-lg font-bold text-gray-800 mb-2">ग्राहकको नाम खोज्नुहोस्</label>
+            <label className="block text-lg font-bold text-gray-800 mb-2">
+              ग्राहक खोज्नुहोस्
+            </label>
             <div className="relative">
               <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -220,7 +242,9 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
                         className="p-3 bg-white rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-400 border border-transparent transition-all shadow-sm"
                       >
                         <p className="text-lg font-bold text-gray-900">{customer.name}</p>
-                        <p className="text-base text-gray-600 font-semibold mt-0.5">{customer.phone || 'मोबाइल नम्बर छैन'}</p>
+                        <p className="text-base text-gray-600 font-semibold mt-0.5">
+                          {customer.phone ? `📱 ${customer.phone}` : 'मोबाइल नम्बर छैन'}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -232,9 +256,9 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
           <hr className="mb-6 border-gray-200" />
 
           {/* Cylinder Selection Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2  gap-5 mb-6">
-            <div className=" p-4 rounded-xl border border-red-100 shadow-sm">
-              <label className="block text-base font-bold  mb-2 flex items-center gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <div className="p-4 rounded-xl border border-red-100 shadow-sm">
+              <label className="block text-base font-bold mb-2 flex items-center gap-2">
                 <IconEmptyCylinder className="w-5 h-5" />
                 १. खाली सिलिन्डर (ल्याएको)
               </label>
@@ -254,11 +278,13 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
                   </svg>
                 </div>
               </div>
-              <p className="text-xs font-semibold text-red-600 mt-2 italic text-center">नयाँ ग्राहक भए "कोही छैन" छान्नुहोस्</p>
+              <p className="text-xs font-semibold text-red-600 mt-2 italic text-center">
+                नयाँ ग्राहक भए "कोही छैन" छान्नुहोस्
+              </p>
             </div>
 
-            <div className=" p-4 rounded-xl border border-green-100 shadow-sm">
-              <label className="block text-base font-bold  mb-2 flex items-center gap-2">
+            <div className="p-4 rounded-xl border border-green-100 shadow-sm">
+              <label className="block text-base font-bold mb-2 flex items-center gap-2">
                 <IconFilledCylinder className="w-5 h-5" />
                 २. भरिएको सिलिन्डर (दिने)
               </label>
@@ -278,13 +304,17 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
                   </svg>
                 </div>
               </div>
-              <p className="text-xs font-semibold text-green-600 mt-2 italic text-center">फिर्ता मात्र भए "कोही छैन" छान्नुहोस्</p>
+              <p className="text-xs font-semibold text-green-600 mt-2 italic text-center">
+                फिर्ता मात्र भए "कोही छैन" छान्नुहोस्
+              </p>
             </div>
           </div>
 
           {/* Remarks Section */}
           <div className="mb-6">
-            <label className="block text-lg font-bold text-gray-700 mb-2">कैफियत (हिसाब-किताब / अन्य)</label>
+            <label className="block text-lg font-bold text-gray-700 mb-2">
+              कैफियत (हिसाब-किताब / अन्य)
+            </label>
             <textarea
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}

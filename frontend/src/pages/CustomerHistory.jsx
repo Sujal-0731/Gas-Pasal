@@ -12,9 +12,9 @@ import {
   IconAlertCircle,
   IconUsers
 } from '../components/icons';
+import { getAuthHeader } from '../utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL;
-const PIN_CODE = import.meta.env.VITE_PIN_CODE;
 
 function CustomerHistory({ showToast }) {
   const [customers, setCustomers] = useState([]);
@@ -30,10 +30,10 @@ function CustomerHistory({ showToast }) {
   const loadCustomers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/customers`, {
-        headers: { 'x-pin': PIN_CODE }
+      const response = await fetch(`${API_URL}/customers`, {
+        headers: getAuthHeader()
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setCustomers(data.data);
       }
@@ -62,7 +62,7 @@ function CustomerHistory({ showToast }) {
     }
   };
 
-  // ✅ FIXED: Search by name OR phone number
+  // Search by name OR phone number
   const filteredCustomers = customers.filter(c => {
     if (!searchTerm) return true;
     
@@ -76,10 +76,10 @@ function CustomerHistory({ showToast }) {
   const viewHistory = async (customer) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/customers/${encodeURIComponent(customer.name)}/history`, {
-        headers: { 'x-pin': PIN_CODE }
+      const response = await fetch(`${API_URL}/customers/${encodeURIComponent(customer.name)}/history`, {
+        headers: getAuthHeader()
       });
-      const data = await res.json();
+      const data = await response.json();
       if (data.success) {
         setSelectedCustomer(customer);
         setHistory(data);
@@ -99,7 +99,7 @@ function CustomerHistory({ showToast }) {
           className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors font-medium text-base"
         >
           <IconChevronLeft className="w-6 h-6" />
-          <span className="text-base font-bold">सबै ग्राहक</span>
+          <span className="text-base font-bold">सबै ग्रাহक</span>
         </button>
 
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
@@ -237,6 +237,9 @@ function CustomerHistory({ showToast }) {
               placeholder="नाम वा फोन नम्बरले खोज्नुहोस्..."
               className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium"
             />
+            <p className="text-xs text-gray-400 mt-1">
+              💡 टिप: नाम वा फोन नम्बरको कुनै भाग लेख्नुहोस्
+            </p>
           </div>
 
           {loading ? (
@@ -256,13 +259,18 @@ function CustomerHistory({ showToast }) {
                   onClick={() => viewHistory(customer)}
                   className="flex items-center justify-between p-5 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors group border-2 border-transparent hover:border-blue-200"
                 >
-                  <div>
+                  <div className="flex-1">
                     <p className="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition-colors">
                       {customer.name}
                     </p>
                     <p className="text-base text-gray-600 mt-1 font-medium">
-                      {customer.phone ? `📱 ${customer.phone}` : 'नम्बर छैन'}
+                      {customer.phone ? `📱 ${customer.phone}` : '📞 नम्बर छैन'}
                     </p>
+                    {customer.address && (
+                      <p className="text-sm text-gray-400 mt-0.5">
+                        📍 {customer.address}
+                      </p>
+                    )}
                   </div>
                   {customer.phone && (
                     <button
@@ -271,6 +279,7 @@ function CustomerHistory({ showToast }) {
                         makePhoneCall(customer.phone);
                       }}
                       className="p-3 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+                      title="फोन गर्नुहोस्"
                     >
                       <IconPhone className="w-5 h-5" />
                     </button>
