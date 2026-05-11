@@ -16,7 +16,6 @@ import {
   IconPackage,
   IconSearch
 } from '../components/icons';
-import { getAuthHeader } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 import EditUserModal from '../components/admin/EditUserModal';
@@ -75,7 +74,9 @@ function AdminPanel({ showToast, user }) {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/admin/users`, { headers: getAuthHeader() });
+      const response = await fetch(`${API_URL}/admin/users`, {
+        credentials: 'include' // ✅ Added
+      });
       const data = await response.json();
       if (data.success) setUsers(data.users);
     } catch (error) {
@@ -86,7 +87,9 @@ function AdminPanel({ showToast, user }) {
 
   const loadStats = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/users/stats`, { headers: getAuthHeader() });
+      const response = await fetch(`${API_URL}/admin/users/stats`, {
+        credentials: 'include' // ✅ Added
+      });
       const data = await response.json();
       if (data.success) setStats(data.stats);
     } catch (error) {}
@@ -97,7 +100,7 @@ function AdminPanel({ showToast, user }) {
       showToast(t('usernameRequired', language), 'error');
       return;
     }
-    if (formData.password.length < 4) {
+    if (formData.password.length < 8) { // ✅ Updated to 8 chars
       showToast(t('passwordLength', language), 'error');
       return;
     }
@@ -105,8 +108,9 @@ function AdminPanel({ showToast, user }) {
     try {
       const response = await fetch(`${API_URL}/admin/users`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-        body: JSON.stringify(formData)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+        credentials: 'include' // ✅ Added
       });
       const data = await response.json();
       if (data.success) {
@@ -130,8 +134,9 @@ function AdminPanel({ showToast, user }) {
     try {
       const response = await fetch(`${API_URL}/admin/users/${selectedUser.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-        body: JSON.stringify({ username: formData.username, role: formData.role, is_active: selectedUser.is_active })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: formData.username, role: formData.role, is_active: selectedUser.is_active }),
+        credentials: 'include' // ✅ Added
       });
       const data = await response.json();
       if (data.success) {
@@ -152,7 +157,7 @@ function AdminPanel({ showToast, user }) {
       showToast(t('newPasswordRequired', language), 'error');
       return;
     }
-    if (newPassword.length < 4) {
+    if (newPassword.length < 8) { // ✅ Updated to 8 chars
       showToast(t('passwordLength', language), 'error');
       return;
     }
@@ -160,8 +165,9 @@ function AdminPanel({ showToast, user }) {
     try {
       const response = await fetch(`${API_URL}/admin/users/${selectedUser.id}/reset-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-        body: JSON.stringify({ newPassword })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword }),
+        credentials: 'include' // ✅ Added
       });
       const data = await response.json();
       if (data.success) {
@@ -183,8 +189,9 @@ function AdminPanel({ showToast, user }) {
     try {
       const response = await fetch(`${API_URL}/admin/users/${userId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-        body: JSON.stringify({ is_active: !currentStatus })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !currentStatus }),
+        credentials: 'include' // ✅ Added
       });
       const data = await response.json();
       if (data.success) {
@@ -206,7 +213,7 @@ function AdminPanel({ showToast, user }) {
     try {
       const response = await fetch(`${API_URL}/admin/users/${userId}`, {
         method: 'DELETE',
-        headers: getAuthHeader()
+        credentials: 'include' // ✅ Added
       });
       const data = await response.json();
       if (data.success) {
@@ -238,7 +245,9 @@ function AdminPanel({ showToast, user }) {
   const loadCustomers = async () => {
     setCustomersLoading(true);
     try {
-      const response = await fetch(`${API_URL}/customers`, { headers: getAuthHeader() });
+      const response = await fetch(`${API_URL}/customers`, {
+        credentials: 'include' // ✅ Added
+      });
       const data = await response.json();
       if (data.success) setCustomers(data.data || []);
     } catch (error) {
@@ -253,13 +262,14 @@ function AdminPanel({ showToast, user }) {
     try {
       const response = await fetch(`${API_URL}/admin/customers/${selectedCustomer.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: customerFormData.name,
           phone: customerFormData.phone || null,
           address: customerFormData.address || null,
           remarks: customerFormData.remarks || null
-        })
+        }),
+        credentials: 'include' // ✅ Added
       });
       const data = await response.json();
       if (data.success) {
@@ -279,7 +289,9 @@ function AdminPanel({ showToast, user }) {
   const loadStock = async () => {
     setStockLoading(true);
     try {
-      const response = await fetch(`${API_URL}/stock`, { headers: getAuthHeader() });
+      const response = await fetch(`${API_URL}/stock`, {
+        credentials: 'include' // ✅ Added
+      });
       const data = await response.json();
       if (data.success) setStock(data.stock);
     } catch (error) {
@@ -294,11 +306,12 @@ function AdminPanel({ showToast, user }) {
     try {
       const response = await fetch(`${API_URL}/admin/stock/${encodeURIComponent(selectedStockType)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           filled_count: parseInt(stockFormData.filled_count),
           empty_count: parseInt(stockFormData.empty_count)
-        })
+        }),
+        credentials: 'include' // ✅ Added
       });
       const data = await response.json();
       if (data.success) {

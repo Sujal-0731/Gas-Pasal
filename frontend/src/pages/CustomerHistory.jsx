@@ -14,7 +14,6 @@ import {
   IconEdit,
   IconRefresh
 } from '../components/icons';
-import { getAuthHeader } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 import { translateCylinder } from '../utils/cylinderTranslator';
@@ -42,7 +41,7 @@ function CustomerHistory({ showToast, user }) {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/customers`, {
-        headers: getAuthHeader()
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) {
@@ -85,7 +84,7 @@ function CustomerHistory({ showToast, user }) {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/customers/${encodeURIComponent(customer.name)}/history`, {
-        headers: getAuthHeader()
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) {
@@ -113,7 +112,7 @@ function CustomerHistory({ showToast, user }) {
       setSelectedCustomer(updatedCustomerData);
       try {
         const response = await fetch(`${API_URL}/customers/${encodeURIComponent(updatedCustomerData.name)}/history`, {
-          headers: getAuthHeader()
+          credentials: 'include'
         });
         const data = await response.json();
         if (data.success) {
@@ -170,7 +169,6 @@ function CustomerHistory({ showToast, user }) {
           </div>
           
           <div className="p-6 space-y-4">
-            <div className="p-6 space-y-4">
             <div className="flex flex-wrap justify-between items-start gap-4">
               <div className="flex-1">
                 <p className="text-gray-500 text-sm mb-1">{t('name', language)}</p>
@@ -206,7 +204,6 @@ function CustomerHistory({ showToast, user }) {
                 <p className="text-gray-900 font-medium">{history.customer.email}</p>
               </div>
             )}
-          </div>
           </div>
         </div>
 

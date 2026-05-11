@@ -1,12 +1,12 @@
 // frontend/src/utils/api.js
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Get auth token from localStorage
+// Get auth token from localStorage (for backward compatibility)
 export const getAuthToken = () => {
   return localStorage.getItem('auth_token');
 };
 
-// Get auth header for fetch requests
+// Get auth header for fetch requests (for backward compatibility)
 export const getAuthHeader = () => {
   const token = getAuthToken();
   return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -25,6 +25,7 @@ export const apiRequest = async (endpoint, options = {}) => {
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers,
+    credentials: 'include', // ✅ Fixed: credentials at fetch options level, not in headers
   });
   
   const data = await response.json();

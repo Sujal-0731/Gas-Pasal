@@ -67,11 +67,42 @@ const createUser = async (req, res) => {
         message: 'Username must be at least 3 characters' 
       });
     }
-    
-    if (password.length < 4) {
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Password must be at least 4 characters' 
+        message: 'Username can only contain letters, numbers, and underscores' 
+      });
+    }
+    
+    // Strong password validation
+    if (password.length < 8) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 8 characters' 
+      });
+    }
+    if (!/[A-Z]/.test(password)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must contain at least one uppercase letter' 
+      });
+    }
+    if (!/[a-z]/.test(password)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must contain at least one lowercase letter' 
+      });
+    }
+    if (!/\d/.test(password)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must contain at least one number' 
+      });
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must contain at least one special character (!@#$%^&*)' 
       });
     }
     
@@ -198,13 +229,19 @@ const resetPassword = async (req, res) => {
     const { id } = req.params;
     const { newPassword } = req.body;
     
-    if (!newPassword || newPassword.length < 4) {
+    if (!newPassword || newPassword.length < 8) {
       return res.status(400).json({ 
         success: false, 
-        message: 'New password must be at least 4 characters' 
+        message: 'New password must be at least 8 characters' 
       });
     }
-    
+    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must contain uppercase, lowercase, and numbers' 
+      });
+    }
+        
     // Check if user exists
     const { data: existing, error: findError } = await supabase
       .from('users')

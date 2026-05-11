@@ -9,9 +9,9 @@ import {
   IconX,
   IconRefresh
 } from '../components/icons';
-import { getAuthHeader } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
+import { translateCylinder } from '../utils/cylinderTranslator';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -26,15 +26,6 @@ const cylinderValues = {
 
 function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
   const { language } = useLanguage();
-  
-  // Display options based on language
-  const cylinderDisplayOptions = [
-    { value: cylinderValues.lokpriya, label: t('lokpriya', language) },
-    { value: cylinderValues.sugam, label: t('sugam', language) },
-    { value: cylinderValues.everest, label: t('everest', language) },
-    { value: cylinderValues.other, label: t('other', language) },
-    { value: cylinderValues.none, label: t('none', language) }
-  ];
   
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -95,7 +86,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/customers?search=${encodeURIComponent(searchTerm)}`, {
-        headers: getAuthHeader()
+        credentials: 'include'
       });
       const data = await res.json();
       if (data.success) {
@@ -149,16 +140,16 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
       const res = await fetch(`${API_URL}/transactions`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           customerName: selectedCustomer.name,
-          emptyCylinder: emptyCylinder,  // Already in Nepali
-          filledCylinder: filledCylinder, // Already in Nepali
+          emptyCylinder: emptyCylinder,
+          filledCylinder: filledCylinder,
           remarks,
           queueId: queueCustomer?.id || null
-        })
+        }),
+        credentials: 'include'
       });
       
       const data = await res.json();
@@ -195,12 +186,6 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Get display label for a value
-  const getDisplayLabel = (value) => {
-    const option = cylinderDisplayOptions.find(opt => opt.value === value);
-    return option ? option.label : value;
   };
 
   const renderSearchStatus = () => {
@@ -261,7 +246,9 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
             <p className="text-xl font-bold text-gray-900">{selectedCustomer?.name}</p>
             {queueCustomer && (
               <p className="text-base text-purple-800 mt-1 font-semibold">
-                {t('broughtCylinder', language)}: {queueCustomer.empty_cylinder}
+                {t('broughtCylinder', language)}: {queueCustomer.empty_cylinder === cylinderValues.none 
+                  ? t('none', language) 
+                  : translateCylinder(queueCustomer.empty_cylinder, language)}
               </p>
             )}
           </div>
@@ -335,9 +322,11 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
                   className="w-full p-3 text-lg font-bold border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-colors appearance-none bg-white shadow-sm pr-12"
                   disabled={!!queueCustomer}
                 >
-                  {cylinderDisplayOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
+                  <option value={cylinderValues.lokpriya}>{translateCylinder('लोकप्रिय', language)}</option>
+                  <option value={cylinderValues.sugam}>{translateCylinder('सुगम', language)}</option>
+                  <option value={cylinderValues.everest}>{translateCylinder('एभरेस्ट', language)}</option>
+                  <option value={cylinderValues.other}>{translateCylinder('अन्य', language)}</option>
+                  <option value={cylinderValues.none}>{t('none', language)}</option>
                 </select>
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                   <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,9 +350,11 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
                   onChange={(e) => setFilledCylinder(e.target.value)}
                   className="w-full p-3 text-lg font-bold border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-colors appearance-none bg-white shadow-sm pr-12"
                 >
-                  {cylinderDisplayOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
+                  <option value={cylinderValues.lokpriya}>{translateCylinder('लोकप्रिय', language)}</option>
+                  <option value={cylinderValues.sugam}>{translateCylinder('सुगम', language)}</option>
+                  <option value={cylinderValues.everest}>{translateCylinder('एभरेस्ट', language)}</option>
+                  <option value={cylinderValues.other}>{translateCylinder('अन्य', language)}</option>
+                  <option value={cylinderValues.none}>{t('none', language)}</option>
                 </select>
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                   <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

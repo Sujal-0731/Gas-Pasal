@@ -134,12 +134,22 @@ const validateDashboardRequest = (req, res, next) => {
   // No additional validation needed
   next();
 };
-
+const validateCustomerName = (req, res, next) => {
+  const { name } = req.params;
+  if (!name || name.trim().length < 2 || name.length > 100) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Invalid customer name' 
+    });
+  }
+  next();
+};
 module.exports = { 
   validateCustomerInput, 
   validateTransactionInput, 
   validateRefillInput,
   validateQueueInput,
   validateQueueDelete,
-  validateDashboardRequest
+  validateDashboardRequest,
+  validateCustomerName
 };

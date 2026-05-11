@@ -11,7 +11,6 @@ import {
   IconFilledCylinder,
   IconEmptyCylinder
 } from '../components/icons';
-import { getAuthHeader } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 import { getCylinderOptions, translateCylinder } from '../utils/cylinderTranslator';
@@ -58,7 +57,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/queue`, {
-        headers: getAuthHeader()
+        credentials: 'include'
       });
       const data = await res.json();
       if (data.success) {
@@ -74,7 +73,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
   const loadCustomers = async () => {
     try {
       const res = await fetch(`${API_URL}/customers`, {
-        headers: getAuthHeader()
+        credentials: 'include'
       });
       const data = await res.json();
       if (data.success) {
@@ -96,15 +95,15 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
       const res = await fetch(`${API_URL}/queue`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
           emptyCylinder: emptyCylinder, // Already in Nepali
           notes
-        })
+        }),
+        credentials: 'include'
       });
       const data = await res.json();
       if (data.success) {
@@ -131,7 +130,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
       try {
         const res = await fetch(`${API_URL}/queue/${queueId}`, {
           method: 'DELETE',
-          headers: getAuthHeader()
+          credentials: 'include'
         });
         const data = await res.json();
         if (data.success) {

@@ -15,9 +15,9 @@ import {
   IconNewPurchase,
   IconDashboard
 } from '../components/icons';
-import { getAuthHeader } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
+import { translateCylinder } from '../utils/cylinderTranslator';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -34,7 +34,7 @@ export function Dashboard({ showToast, onNavigate }) {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/dashboard`, {
-        headers: getAuthHeader()
+        credentials: 'include'
       });
       
       const data = await response.json();
@@ -150,15 +150,15 @@ export function Dashboard({ showToast, onNavigate }) {
       </div>
 
       {/* Monthly Sales Card */}
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 shadow-lg">
+      <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-orange-100 text-sm font-medium mb-1">{t('monthlySales', language)}</p>
-            <p className="text-4xl md:text-5xl font-bold text-white">{stats.monthlySales}</p>
-            <p className="text-orange-100 text-sm mt-2">{t('cylinders', language)}</p>
+            <p className="text-gray-500 text-sm font-medium mb-1">{t('monthlySales', language)}</p>
+            <p className="text-4xl md:text-5xl font-bold text-gray-800">{stats.monthlySales}</p>
+            <p className="text-gray-400 text-sm mt-2">{t('cylinders', language)}</p>
           </div>
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-            <IconTrendingUp className="w-8 h-8 text-white" />
+          <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center">
+            <IconTrendingUp className="w-8 h-8 text-orange-600" />
           </div>
         </div>
       </div>
@@ -182,41 +182,6 @@ export function Dashboard({ showToast, onNavigate }) {
         <div className="p-6">
           <StockProgress stock={stock} />
         </div>
-      </div>
-
-      {/* Quick Action Buttons */}
-      <div className="grid grid-cols-2 gap-4">
-        <button
-          onClick={() => onNavigate?.('exchange')}
-          className="bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-bold text-lg shadow-md transition-all active:scale-98 flex items-center justify-center gap-3"
-        >
-          <IconTransaction className="w-6 h-6" />
-          {t('newTransaction', language)}
-        </button>
-        
-        <button
-          onClick={() => onNavigate?.('queue')}
-          className="bg-purple-600 hover:bg-purple-700 text-white py-5 rounded-2xl font-bold text-lg shadow-md transition-all active:scale-98 flex items-center justify-center gap-3"
-        >
-          <IconQueue className="w-6 h-6" />
-          {t('viewQueue', language)} ({stats.activeQueue})
-        </button>
-        
-        <button
-          onClick={() => onNavigate?.('customers')}
-          className="bg-green-600 hover:bg-green-700 text-white py-5 rounded-2xl font-bold text-lg shadow-md transition-all active:scale-98 flex items-center justify-center gap-3"
-        >
-          <IconUsers className="w-6 h-6" />
-          {t('customerList', language)}
-        </button>
-        
-        <button
-          onClick={() => onNavigate?.('newcustomer')}
-          className="bg-orange-600 hover:bg-orange-700 text-white py-5 rounded-2xl font-bold text-lg shadow-md transition-all active:scale-98 flex items-center justify-center gap-3"
-        >
-          <IconNewCustomer className="w-6 h-6" />
-          {t('newCustomer', language)}
-        </button>
       </div>
 
       {/* Recent Transactions Section */}
@@ -257,7 +222,7 @@ export function Dashboard({ showToast, onNavigate }) {
                       <div className="flex items-center gap-2 justify-end">
                         <IconFilledCylinder className="w-5 h-5 text-green-600" />
                         <span className="text-base font-semibold text-green-700">
-                          {transaction.filled_cylinder}
+                          {translateCylinder(transaction.filled_cylinder, language)}
                         </span>
                       </div>
                     ) : (
@@ -271,7 +236,7 @@ export function Dashboard({ showToast, onNavigate }) {
                       <div className="flex items-center gap-2 justify-end mt-1">
                         <IconEmptyCylinder className="w-5 h-5 text-red-500" />
                         <span className="text-sm text-red-600 font-medium">
-                          {transaction.empty_cylinder}
+                          {translateCylinder(transaction.empty_cylinder, language)}
                         </span>
                       </div>
                     ) : (

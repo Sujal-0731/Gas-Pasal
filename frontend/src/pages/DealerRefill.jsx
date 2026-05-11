@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   IconDealer, 
   IconPlus, 
@@ -15,22 +15,11 @@ import {
   IconCheck,
   IconX
 } from '../components/icons';
-import { getAuthHeader } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
+import { translateCylinder } from '../utils/cylinderTranslator';
 
 const API_URL = import.meta.env.VITE_API_URL;
-
-// Cylinder mapping for display
-const getCylinderDisplayName = (cylinderKey, language) => {
-  const mappings = {
-    lokpriya: { np: 'लोकप्रिय', en: 'Lokpriya' },
-    sugam: { np: 'सुगम', en: 'Sugam' },
-    everest: { np: 'एभरेस्ट', en: 'Everest' },
-    other: { np: 'अन्य', en: 'Other' }
-  };
-  return mappings[cylinderKey]?.[language] || cylinderKey;
-};
 
 function DealerRefill({ showToast }) {
   const { language } = useLanguage();
@@ -50,11 +39,11 @@ function DealerRefill({ showToast }) {
   const [otherTake, setOtherTake] = useState(0);
   const [notes, setNotes] = useState('');
 
-  // Cylinder sections with display names based on language
-  const cylinderSections = [
+  // Cylinder sections with display names using translateCylinder - Now reactive to language changes
+  const cylinderSections = useMemo(() => [
     { 
       key: 'lokpriya',
-      label: getCylinderDisplayName('lokpriya', language),
+      label: translateCylinder('लोकप्रिय', language),
       give: lokpriyaGive, 
       setGive: setLokpriyaGive, 
       take: lokpriyaTake, 
@@ -63,7 +52,7 @@ function DealerRefill({ showToast }) {
     },
     { 
       key: 'sugam',
-      label: getCylinderDisplayName('sugam', language),
+      label: translateCylinder('सुगम', language),
       give: sugamGive, 
       setGive: setSugamGive, 
       take: sugamTake, 
@@ -72,7 +61,7 @@ function DealerRefill({ showToast }) {
     },
     { 
       key: 'everest',
-      label: getCylinderDisplayName('everest', language),
+      label: translateCylinder('एभरेस्ट', language),
       give: everestGive, 
       setGive: setEverestGive, 
       take: everestTake, 
@@ -81,14 +70,14 @@ function DealerRefill({ showToast }) {
     },
     { 
       key: 'other',
-      label: getCylinderDisplayName('other', language),
+      label: translateCylinder('अन्य', language),
       give: otherGive, 
       setGive: setOtherGive, 
       take: otherTake, 
       setTake: setOtherTake, 
       icon: <IconOther className="w-8 h-8" /> 
     }
-  ];
+  ], [language, lokpriyaGive, lokpriyaTake, sugamGive, sugamTake, everestGive, everestTake, otherGive, otherTake]);
 
   useEffect(() => {
     loadRefillHistory();
@@ -97,7 +86,7 @@ function DealerRefill({ showToast }) {
   const loadRefillHistory = async () => {
     try {
       const response = await fetch(`${API_URL}/refills`, {
-        headers: getAuthHeader()
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) {
@@ -147,9 +136,10 @@ function DealerRefill({ showToast }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeader()
+          
         },
-        body: JSON.stringify(sendData)
+        body: JSON.stringify(sendData),
+        credentials: 'include'
       });
       
       const data = await response.json();
@@ -199,17 +189,6 @@ function DealerRefill({ showToast }) {
   };
 
   const { totalFilled, totalEmpty } = getTotalStats();
-
-  // Helper to translate cylinder names in history
-  const translateCylinderName = (name) => {
-    const translations = {
-      'लोकप्रिय': language === 'np' ? 'लोकप्रिय' : 'Lokpriya',
-      'सुगम': language === 'np' ? 'सुगम' : 'Sugam',
-      'एभरेस्ट': language === 'np' ? 'एभरेस्ट' : 'Everest',
-      'अन्य / Other': language === 'np' ? 'अन्य' : 'Other'
-    };
-    return translations[name] || name;
-  };
 
   if (showHistory) {
     return (
@@ -271,7 +250,7 @@ function DealerRefill({ showToast }) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <IconLokpriya className="w-6 h-6" />
-                                <span>{translateCylinderName('लोकप्रिय')}</span>
+                                <span>{translateCylinder('लोकप्रिय', language)}</span>
                               </div>
                               <div className="flex gap-3">
                                 <span className="text-green-600">+{r.exchange_give_lokpriya || 0}</span>
@@ -283,7 +262,7 @@ function DealerRefill({ showToast }) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <IconSugam className="w-6 h-6" />
-                                <span>{translateCylinderName('सुगम')}</span>
+                                <span>{translateCylinder('सुगम', language)}</span>
                               </div>
                               <div className="flex gap-3">
                                 <span className="text-green-600">+{r.exchange_give_sugam || 0}</span>
@@ -295,7 +274,7 @@ function DealerRefill({ showToast }) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <IconEverest className="w-6 h-6" />
-                                <span>{translateCylinderName('एभरेस्ट')}</span>
+                                <span>{translateCylinder('एभरेस्ट', language)}</span>
                               </div>
                               <div className="flex gap-3">
                                 <span className="text-green-600">+{r.exchange_give_everest || 0}</span>
@@ -307,7 +286,7 @@ function DealerRefill({ showToast }) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <IconOther className="w-6 h-6" />
-                                <span>{translateCylinderName('अन्य / Other')}</span>
+                                <span>{translateCylinder('अन्य', language)}</span>
                               </div>
                               <div className="flex gap-3">
                                 <span className="text-green-600">+{r.exchange_give_other || 0}</span>
@@ -324,7 +303,7 @@ function DealerRefill({ showToast }) {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <IconLokpriya className="w-6 h-6" />
-                              <span>{translateCylinderName('लोकप्रिय')}</span>
+                              <span>{translateCylinder('लोकप्रिय', language)}</span>
                             </div>
                             <div className="flex gap-3">
                               <span className="text-green-600">+{r.lokpriya_filled || 0}</span>
@@ -336,7 +315,7 @@ function DealerRefill({ showToast }) {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <IconSugam className="w-6 h-6" />
-                              <span>{translateCylinderName('सुगम')}</span>
+                              <span>{translateCylinder('सुगम', language)}</span>
                             </div>
                             <div className="flex gap-3">
                               <span className="text-green-600">+{r.sugam_filled || 0}</span>
@@ -348,7 +327,7 @@ function DealerRefill({ showToast }) {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <IconEverest className="w-6 h-6" />
-                              <span>{translateCylinderName('एभरेस्ट')}</span>
+                              <span>{translateCylinder('एभरेस्ट', language)}</span>
                             </div>
                             <div className="flex gap-3">
                               <span className="text-green-600">+{r.everest_filled || 0}</span>
@@ -360,7 +339,7 @@ function DealerRefill({ showToast }) {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <IconOther className="w-6 h-6" />
-                              <span>{translateCylinderName('अन्य / Other')}</span>
+                              <span>{translateCylinder('अन्य', language)}</span>
                             </div>
                             <div className="flex gap-3">
                               <span className="text-green-600">+{r.other_filled || 0}</span>

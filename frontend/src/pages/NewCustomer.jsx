@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { IconPlus, IconCheck, IconX, IconNewCustomer } from '../components/icons';
-import { getAuthHeader } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 
@@ -41,14 +40,14 @@ function NewCustomer({ showToast }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeader()
         },
         body: JSON.stringify({
           name: name.trim(),
           phone: phone || null,
           address: address || null,
           remarks: remarks || null
-        })
+        }),
+        credentials: 'include'
       });
       
       const data = await response.json();

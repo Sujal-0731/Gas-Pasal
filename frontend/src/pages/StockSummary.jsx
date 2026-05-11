@@ -4,7 +4,6 @@ import {
   IconPackage
 } from '../components/icons';
 import { StockProgress } from '../components/dashboard/StockProgress';
-import { getAuthHeader } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 
@@ -19,7 +18,7 @@ function StockSummary() {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/stock`, {
-        headers: getAuthHeader()
+        credentials: 'include'
       });
       const data = await res.json();
       if (data.success) {

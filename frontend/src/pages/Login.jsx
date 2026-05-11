@@ -25,15 +25,14 @@ function Login({ onLogin, showToast }) {
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password }),
+        credentials: 'include' 
       });
       
       const data = await response.json();
       
       if (data.success) {
-        localStorage.setItem('auth_token', data.data.token);
         localStorage.setItem('user', JSON.stringify(data.data.user));
-        
         showToast(`${t('welcome', language)}, ${data.data.user.username}!`, 'success');
         onLogin(data.data.user);
       } else {

@@ -11,9 +11,9 @@ import {
   IconEmptyCylinder,
   IconExchange  
 } from '../components/icons';
-import { getAuthHeader } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
+import { translateCylinder } from '../utils/cylinderTranslator';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -31,7 +31,7 @@ function RefillHistory() {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/refills`, {
-        headers: getAuthHeader()
+        credentials: 'include'
       });
       const data = await res.json();
       if (data.success) {
@@ -98,7 +98,7 @@ function RefillHistory() {
             <div className="flex items-center justify-between p-2 bg-orange-50 rounded-lg">
               <div className="flex items-center gap-2">
                 <IconLokpriya className="w-5 h-5" />
-                <span className="font-semibold text-orange-800">{t('lokpriya', language)}</span>
+                <span className="font-semibold text-orange-800">{translateCylinder('लोकप्रिय', language)}</span>
               </div>
               <div className="flex gap-4">
                 <span className="text-green-700 font-bold flex items-center gap-1">
@@ -116,7 +116,7 @@ function RefillHistory() {
             <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
               <div className="flex items-center gap-2">
                 <IconSugam className="w-5 h-5" />
-                <span className="font-semibold text-green-800">{t('sugam', language)}</span>
+                <span className="font-semibold text-green-800">{translateCylinder('सुगम', language)}</span>
               </div>
               <div className="flex gap-4">
                 <span className="text-green-700 font-bold flex items-center gap-1">
@@ -134,7 +134,7 @@ function RefillHistory() {
             <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
               <div className="flex items-center gap-2">
                 <IconEverest className="w-5 h-5" />
-                <span className="font-semibold text-blue-800">{t('everest', language)}</span>
+                <span className="font-semibold text-blue-800">{translateCylinder('एभरेस्ट', language)}</span>
               </div>
               <div className="flex gap-4">
                 <span className="text-green-700 font-bold flex items-center gap-1">
@@ -154,7 +154,7 @@ function RefillHistory() {
                 <div className="w-6 h-6 bg-gray-500 rounded-md flex items-center justify-center">
                   <span className="text-white text-xs font-bold">O</span>
                 </div>
-                <span className="font-semibold text-gray-800">{t('other', language)}</span>
+                <span className="font-semibold text-gray-800">{translateCylinder('अन्य', language)}</span>
               </div>
               <div className="flex gap-4">
                 <span className="text-green-700 font-bold flex items-center gap-1">
@@ -186,7 +186,7 @@ function RefillHistory() {
             <div className="flex items-center justify-between p-2 bg-orange-50 rounded-lg">
               <div className="flex items-center gap-2">
                 <IconLokpriya className="w-5 h-5" />
-                <span className="font-semibold text-orange-800">{t('lokpriya', language)}</span>
+                <span className="font-semibold text-orange-800">{translateCylinder('लोकप्रिय', language)}</span>
               </div>
               <div className="flex gap-4">
                 <span className="text-green-700 font-bold flex items-center gap-1">
@@ -204,7 +204,7 @@ function RefillHistory() {
             <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
               <div className="flex items-center gap-2">
                 <IconSugam className="w-5 h-5" />
-                <span className="font-semibold text-green-800">{t('sugam', language)}</span>
+                <span className="font-semibold text-green-800">{translateCylinder('सुगम', language)}</span>
               </div>
               <div className="flex gap-4">
                 <span className="text-green-700 font-bold flex items-center gap-1">
@@ -222,7 +222,7 @@ function RefillHistory() {
             <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
               <div className="flex items-center gap-2">
                 <IconEverest className="w-5 h-5" />
-                <span className="font-semibold text-blue-800">{t('everest', language)}</span>
+                <span className="font-semibold text-blue-800">{translateCylinder('एभरेस्ट', language)}</span>
               </div>
               <div className="flex gap-4">
                 <span className="text-green-700 font-bold flex items-center gap-1">
@@ -242,7 +242,7 @@ function RefillHistory() {
                 <div className="w-6 h-6 bg-gray-500 rounded-md flex items-center justify-center">
                   <span className="text-white text-xs font-bold">O</span>
                 </div>
-                <span className="font-semibold text-gray-800">{t('other', language)}</span>
+                <span className="font-semibold text-gray-800">{translateCylinder('अन्य', language)}</span>
               </div>
               <div className="flex gap-4">
                 <span className="text-green-700 font-bold flex items-center gap-1">
@@ -307,7 +307,7 @@ function RefillHistory() {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <IconLokpriya className="w-4 h-4" />
-                    <span>{t('lokpriya', language)}</span>
+                    <span>{translateCylinder('लोकप्रिय', language)}</span>
                   </div>
                   <div className="flex gap-3">
                     <span className="text-green-600 font-bold">+{totalLokpriyaFilled}</span>
@@ -317,7 +317,7 @@ function RefillHistory() {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <IconSugam className="w-4 h-4" />
-                    <span>{t('sugam', language)}</span>
+                    <span>{translateCylinder('सुगम', language)}</span>
                   </div>
                   <div className="flex gap-3">
                     <span className="text-green-600 font-bold">+{totalSugamFilled}</span>
@@ -327,7 +327,7 @@ function RefillHistory() {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <IconEverest className="w-4 h-4" />
-                    <span>{t('everest', language)}</span>
+                    <span>{translateCylinder('एभरेस्ट', language)}</span>
                   </div>
                   <div className="flex gap-3">
                     <span className="text-green-600 font-bold">+{totalEverestFilled}</span>
@@ -340,7 +340,7 @@ function RefillHistory() {
                     <div className="w-5 h-5 bg-gray-500 rounded-md flex items-center justify-center">
                       <span className="text-white text-[10px] font-bold">O</span>
                     </div>
-                    <span>{t('other', language)}</span>
+                    <span>{translateCylinder('अन्य', language)}</span>
                   </div>
                   <div className="flex gap-3">
                     <span className="text-green-600 font-bold">+{totalOtherFilled}</span>
@@ -361,7 +361,7 @@ function RefillHistory() {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <IconLokpriya className="w-4 h-4" />
-                      <span>{t('lokpriya', language)}</span>
+                      <span>{translateCylinder('लोकप्रिय', language)}</span>
                     </div>
                     <div className="flex gap-3">
                       <span className="text-green-600 font-bold">+{totalExchangeGiveLokpriya}</span>
@@ -373,7 +373,7 @@ function RefillHistory() {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <IconSugam className="w-4 h-4" />
-                      <span>{t('sugam', language)}</span>
+                      <span>{translateCylinder('सुगम', language)}</span>
                     </div>
                     <div className="flex gap-3">
                       <span className="text-green-600 font-bold">+{totalExchangeGiveSugam}</span>
@@ -385,7 +385,7 @@ function RefillHistory() {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <IconEverest className="w-4 h-4" />
-                      <span>{t('everest', language)}</span>
+                      <span>{translateCylinder('एभरेस्ट', language)}</span>
                     </div>
                     <div className="flex gap-3">
                       <span className="text-green-600 font-bold">+{totalExchangeGiveEverest}</span>
@@ -400,7 +400,7 @@ function RefillHistory() {
                       <div className="w-5 h-5 bg-gray-500 rounded-md flex items-center justify-center">
                         <span className="text-white text-[10px] font-bold">O</span>
                       </div>
-                      <span>{t('other', language)}</span>
+                      <span>{translateCylinder('अन्य', language)}</span>
                     </div>
                     <div className="flex gap-3">
                       <span className="text-green-600 font-bold">+{totalExchangeGiveOther}</span>
