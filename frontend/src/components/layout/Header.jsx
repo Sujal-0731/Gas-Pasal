@@ -2,9 +2,40 @@ import React, { useState } from 'react';
 import { IconUsers, IconLogout, IconLanguage } from '../icons';
 import { useLanguage } from '../../context/LanguageContext';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export function Header({ user, onLogout }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { language, toggleLanguage } = useLanguage();
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const response = await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'  // ✅ Important - sends the cookie to clear
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Call parent logout handler
+        onLogout();
+      } else {
+        console.error('Logout failed:', data.message);
+        // Still logout locally even if API fails
+        onLogout();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still logout locally even if API fails
+      onLogout();
+    } finally {
+      setIsLoggingOut(false);
+      setShowUserMenu(false);
+    }
+  };
   
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-gray-200 py-3 px-4 shadow-md">
@@ -65,14 +96,12 @@ export function Header({ user, onLogout }) {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        onLogout();
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg transition-colors flex items-center gap-2"
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
+                      className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg transition-colors flex items-center gap-2 disabled:opacity-50"
                     >
                       <IconLogout className="w-4 h-4" />
-                      लगआउट
+                      {isLoggingOut ? 'लगआउट हुदै...' : 'लगआउट'}
                     </button>
                   </div>
                 </>

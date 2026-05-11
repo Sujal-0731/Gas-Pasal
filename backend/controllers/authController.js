@@ -1,14 +1,14 @@
-// backend/controllers/authController.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/database');
 const logger = require('../utils/logger');
 
-const JWT_SECRET = process.env.JWT_SECRET ;
+const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   throw new Error('CRITICAL: JWT_SECRET environment variable must be set');
 }
 const TOKEN_EXPIRY = '30d';
+
 const generateToken = (userId, username, role) => {
   return jwt.sign({ userId, username, role }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 };
@@ -63,28 +63,16 @@ const login = async (req, res) => {
     
     const isProduction = process.env.NODE_ENV === 'production';
     
-    console.log('Setting cookie with:', {
-      secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax',
-      tokenLength: token.length
-    });
-    
     res.cookie('auth_token', token, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax',
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000,
       path: '/'
     });
     
-    // Log the response headers that will be sent
-    res.on('finish', () => {
-      console.log('Response headers sent:', res.getHeaders());
-    });
-    
     logger.info(`User logged in: ${username} (${user.role})`);
     
-    // Send user data without token (token is in cookie)
     res.json({
       success: true,
       data: {
@@ -105,6 +93,7 @@ const login = async (req, res) => {
     });
   }
 };
+
 const getCurrentUser = async (req, res) => {
   res.json({ 
     success: true, 
@@ -120,7 +109,7 @@ const logout = async (req, res) => {
   res.clearCookie('auth_token', {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/'
   });
   res.json({ success: true, message: 'Logged out successfully' });

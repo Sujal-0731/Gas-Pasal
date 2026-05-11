@@ -1,4 +1,4 @@
-// App.jsx - Fixed version
+// App.jsx - Fixed version with httpOnly cookies
 import React, { useState, useEffect } from 'react';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
@@ -14,6 +14,8 @@ import Login from './pages/Login';
 import { Toast } from './components/ui/Toast';
 import { LanguageProvider } from './context/LanguageContext';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
@@ -28,16 +30,32 @@ function App() {
   };
 
   useEffect(() => {
-    // Check for existing token
-    const token = localStorage.getItem('auth_token');
-    const savedUser = localStorage.getItem('user');
+    // ✅ Check authentication status via API (cookie is sent automatically)
+    const checkAuth = async () => {
+      try {
+        const response = await fetch(`${API_URL}/auth/me`, {
+          credentials: 'include'  // ✅ Cookie sent automatically
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.data?.user) {
+          setUser(data.data.user);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    if (token && savedUser) {
-      const userData = JSON.parse(savedUser);
-      setUser(userData);
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
+    checkAuth();
   }, []);
 
   const handleLogin = (userData) => {
@@ -45,9 +63,18 @@ function App() {
     setUser(userData);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
+  const handleLogout = async () => {
+    try {
+      // ✅ Call logout endpoint to clear the cookie
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
+    // ✅ Clear state (no localStorage to clear!)
     setIsAuthenticated(false);
     setUser(null);
     setActiveTab('dashboard');
