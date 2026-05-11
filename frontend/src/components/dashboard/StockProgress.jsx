@@ -1,4 +1,3 @@
-import React from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { t } from '../../utils/translations';
 import { IconLokpriya, IconSugam, IconEverest, IconOther } from '../icons';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { IconUsers, IconLogout, IconLanguage } from '../icons';
 import { useLanguage } from '../../context/LanguageContext';
 

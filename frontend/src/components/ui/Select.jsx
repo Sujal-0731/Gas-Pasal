@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const Select = ({ label, value, onChange, options, required = false, icon: Icon }) => {
   return (
     <div className="mb-5">

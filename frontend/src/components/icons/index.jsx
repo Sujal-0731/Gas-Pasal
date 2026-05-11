@@ -180,25 +180,25 @@ export const IconChevronRight = ({ className = "w-5 h-5" }) => (
 );
 
 // Cylinder Type Logos
-export const IconLokpriya = ({ className = "w-6 h-6" }) => (
+export const IconLokpriya = ({ className: _className = "w-6 h-6" }) => (
   <div className="w-6 h-6 bg-orange-500 rounded-md flex items-center justify-center shadow-sm">
     <span className="text-white text-xs font-bold">L</span>
   </div>
 );
 
-export const IconSugam = ({ className = "w-6 h-6" }) => (
+export const IconSugam = ({ className: _className = "w-6 h-6" }) => (
   <div className="w-6 h-6 bg-green-600 rounded-md flex items-center justify-center shadow-sm">
     <span className="text-white text-xs font-bold">S</span>
   </div>
 );
 
-export const IconEverest = ({ className = "w-6 h-6" }) => (
+export const IconEverest = ({ className: _className = "w-6 h-6" }) => (
   <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center shadow-sm">
     <span className="text-white text-xs font-bold">E</span>
   </div>
 );
 
-export const IconOther = ({ className = "w-6 h-6" }) => (
+export const IconOther = ({ className: _className = "w-6 h-6" }) => (
   <div className="w-6 h-6 bg-gray-500 rounded-md flex items-center justify-center shadow-sm">
     <span className="text-white text-xs font-bold">O</span>
   </div>

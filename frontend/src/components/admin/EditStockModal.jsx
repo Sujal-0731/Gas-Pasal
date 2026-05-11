@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { IconX, IconCheck } from '../../components/icons';
-import { getAuthHeader } from '../../utils/api';
+// ❌ Remove this line: import { getAuthHeader } from '../../utils/api';
 import { useLanguage } from '../../context/LanguageContext';
 import { t } from '../../utils/translations';
 
@@ -19,16 +19,17 @@ function EditStockModal({ stockItem, cylinderType, onClose, onSuccess, showToast
     
     setLoading(true);
     try {
+      // ✅ FIX: Remove getAuthHeader, add credentials: 'include'
       const response = await fetch(`${API_URL}/admin/stock/${encodeURIComponent(cylinderType)}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           filled_count: parseInt(formData.filled_count),
           empty_count: parseInt(formData.empty_count)
-        })
+        }),
+        credentials: 'include'  // ✅ Send httpOnly cookie
       });
       
       const data = await response.json();
@@ -39,7 +40,7 @@ function EditStockModal({ stockItem, cylinderType, onClose, onSuccess, showToast
       } else {
         showToast(data.message, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t('networkError', language), 'error');
     }
     setLoading(false);
@@ -65,7 +66,7 @@ function EditStockModal({ stockItem, cylinderType, onClose, onSuccess, showToast
             <input
               type="number"
               value={formData.filled_count}
-              onChange={(e) => setFormData({ ...formData, filled_count: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, filled_count: parseInt(e.target.value) || 0 })}
               className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-orange-500 outline-none"
               min="0"
               required
@@ -79,7 +80,7 @@ function EditStockModal({ stockItem, cylinderType, onClose, onSuccess, showToast
             <input
               type="number"
               value={formData.empty_count}
-              onChange={(e) => setFormData({ ...formData, empty_count: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, empty_count: parseInt(e.target.value) || 0 })}
               className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-orange-500 outline-none"
               min="0"
               required

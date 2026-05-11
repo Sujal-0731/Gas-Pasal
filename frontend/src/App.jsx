@@ -1,5 +1,5 @@
-// App.jsx - Fixed version
-import React, { useState, useEffect } from 'react';
+// App.jsx - Fixed version with better session handling
+import { useState, useEffect, useCallback } from 'react';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
 import Exchange from './pages/Exchange';
@@ -29,9 +29,38 @@ function App() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  useEffect(() => {
-    setLoading(false);
+  // ✅ Wrap checkAuth with useCallback
+  const checkAuth = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/me`, {
+        credentials: 'include'
+      });
+      
+      // ✅ Handle rate limiting
+      if (response.status === 429) {
+        console.log('Rate limited, will retry in 5 seconds');
+        setTimeout(checkAuth, 5000);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.data?.user) {
+        setUser(data.data.user);
+        setIsAuthenticated(true);
+        console.log('Session restored:', data.data.user.username);
+      }
+    } catch (error) {
+      console.log('No active session');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // ✅ Add checkAuth to dependency array
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   const handleLogin = (userData) => {
     setIsAuthenticated(true);
@@ -81,7 +110,6 @@ function App() {
 
   return (
     <LanguageProvider>
-      {/* ✅ Toast is ALWAYS rendered, independent of auth state */}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       
       {!isAuthenticated ? (

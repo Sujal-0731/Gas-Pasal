@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { IconX, IconCheck } from '../../components/icons';
-import { getAuthHeader } from '../../utils/api';
 import { useLanguage } from '../../context/LanguageContext';
 import { t } from '../../utils/translations';
 
@@ -28,14 +27,14 @@ function EditUserModal({ user, onClose, onSuccess, showToast }) {
       const response = await fetch(`${API_URL}/admin/users/${user.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           username: formData.username,
           role: formData.role,
           is_active: formData.is_active
-        })
+        }),
+        credentials: 'include'
       });
       
       const data = await response.json();
@@ -46,7 +45,7 @@ function EditUserModal({ user, onClose, onSuccess, showToast }) {
       } else {
         showToast(data.message, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t('networkError', language), 'error');
     }
     setLoading(false);

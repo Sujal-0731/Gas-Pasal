@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const PageHeader = ({ title, subtitle, icon: Icon, action }) => {
   return (
     <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-xl p-5 mb-6">

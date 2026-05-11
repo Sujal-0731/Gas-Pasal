@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   IconUsers, 
   IconPlus, 
   IconEdit, 
   IconTrash, 
-  IconKey,
-  IconCheck,
+  IconKey,  
   IconX,
   IconRefresh,
   IconAlertCircle,
-  IconUserPlus,
   IconUserCheck,
   IconDashboard,
   IconSettings,
@@ -57,50 +55,39 @@ function AdminPanel({ showToast, user }) {
 
   const isAdmin = user?.role === 'admin';
 
-  useEffect(() => {
-    if (isAdmin) {
-      if (activeTab === 'users') {
-        loadUsers();
-        loadStats();
-      } else if (activeTab === 'customers') {
-        loadCustomers();
-      } else if (activeTab === 'stock') {
-        loadStock();
-      }
-    }
-  }, [isAdmin, activeTab]);
-
   // ========== USER FUNCTIONS ==========
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/admin/users`, {
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) setUsers(data.users);
-    } catch (error) {
+    } catch {
       showToast(t('error', language), 'error');
     }
     setLoading(false);
-  };
+  }, [showToast, language]);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/admin/users/stats`, {
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) setStats(data.stats);
-    } catch (error) {}
-  };
+    } catch {
+      // Silently ignore stats loading errors
+    }
+  }, []);
 
   const createUser = async () => {
     if (!formData.username || !formData.password) {
       showToast(t('usernameRequired', language), 'error');
       return;
     }
-    if (formData.password.length < 8) { // ✅ Updated to 8 chars
+    if (formData.password.length < 8) {
       showToast(t('passwordLength', language), 'error');
       return;
     }
@@ -110,7 +97,7 @@ function AdminPanel({ showToast, user }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) {
@@ -122,12 +109,13 @@ function AdminPanel({ showToast, user }) {
       } else {
         showToast(data.message, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t('networkError', language), 'error');
     }
     setLoading(false);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const updateUser = async () => {
     if (!selectedUser) return;
     setLoading(true);
@@ -136,7 +124,7 @@ function AdminPanel({ showToast, user }) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: formData.username, role: formData.role, is_active: selectedUser.is_active }),
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) {
@@ -146,7 +134,7 @@ function AdminPanel({ showToast, user }) {
       } else {
         showToast(data.message, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t('networkError', language), 'error');
     }
     setLoading(false);
@@ -157,7 +145,7 @@ function AdminPanel({ showToast, user }) {
       showToast(t('newPasswordRequired', language), 'error');
       return;
     }
-    if (newPassword.length < 8) { // ✅ Updated to 8 chars
+    if (newPassword.length < 8) {
       showToast(t('passwordLength', language), 'error');
       return;
     }
@@ -167,7 +155,7 @@ function AdminPanel({ showToast, user }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword }),
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) {
@@ -177,7 +165,7 @@ function AdminPanel({ showToast, user }) {
       } else {
         showToast(data.message, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t('networkError', language), 'error');
     }
     setLoading(false);
@@ -191,7 +179,7 @@ function AdminPanel({ showToast, user }) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !currentStatus }),
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) {
@@ -201,7 +189,7 @@ function AdminPanel({ showToast, user }) {
       } else {
         showToast(data.message, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t('networkError', language), 'error');
     }
     setLoading(false);
@@ -213,7 +201,7 @@ function AdminPanel({ showToast, user }) {
     try {
       const response = await fetch(`${API_URL}/admin/users/${userId}`, {
         method: 'DELETE',
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) {
@@ -223,7 +211,7 @@ function AdminPanel({ showToast, user }) {
       } else {
         showToast(data.message, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t('networkError', language), 'error');
     }
     setLoading(false);
@@ -242,20 +230,21 @@ function AdminPanel({ showToast, user }) {
   };
 
   // ========== CUSTOMER FUNCTIONS ==========
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     setCustomersLoading(true);
     try {
       const response = await fetch(`${API_URL}/customers`, {
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) setCustomers(data.data || []);
-    } catch (error) {
+    } catch {
       showToast(t('error', language), 'error');
     }
     setCustomersLoading(false);
-  };
+  }, [showToast, language]);
 
+  // eslint-disable-next-line no-unused-vars
   const updateCustomer = async () => {
     if (!selectedCustomer) return;
     setCustomersLoading(true);
@@ -269,7 +258,7 @@ function AdminPanel({ showToast, user }) {
           address: customerFormData.address || null,
           remarks: customerFormData.remarks || null
         }),
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) {
@@ -279,27 +268,28 @@ function AdminPanel({ showToast, user }) {
       } else {
         showToast(data.message, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t('networkError', language), 'error');
     }
     setCustomersLoading(false);
   };
 
   // ========== STOCK FUNCTIONS ==========
-  const loadStock = async () => {
+  const loadStock = useCallback(async () => {
     setStockLoading(true);
     try {
       const response = await fetch(`${API_URL}/stock`, {
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) setStock(data.stock);
-    } catch (error) {
+    } catch {
       showToast(t('error', language), 'error');
     }
     setStockLoading(false);
-  };
+  }, [showToast, language]);
 
+  // eslint-disable-next-line no-unused-vars
   const updateStock = async () => {
     if (!selectedStockType) return;
     setStockLoading(true);
@@ -311,7 +301,7 @@ function AdminPanel({ showToast, user }) {
           filled_count: parseInt(stockFormData.filled_count),
           empty_count: parseInt(stockFormData.empty_count)
         }),
-        credentials: 'include' // ✅ Added
+        credentials: 'include'
       });
       const data = await response.json();
       if (data.success) {
@@ -321,7 +311,7 @@ function AdminPanel({ showToast, user }) {
       } else {
         showToast(data.message, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t('networkError', language), 'error');
     }
     setStockLoading(false);
@@ -343,6 +333,21 @@ function AdminPanel({ showToast, user }) {
     (c.phone && c.phone.includes(customerSearch))
   );
 
+  // ✅ useEffect AFTER all hooks
+  useEffect(() => {
+    if (isAdmin) {
+      if (activeTab === 'users') {
+        loadUsers();
+        loadStats();
+      } else if (activeTab === 'customers') {
+        loadCustomers();
+      } else if (activeTab === 'stock') {
+        loadStock();
+      }
+    }
+  }, [isAdmin, activeTab, loadUsers, loadStats, loadCustomers, loadStock]);
+
+  // ✅ Conditional return AFTER hooks
   if (!isAdmin) {
     return (
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
@@ -355,7 +360,7 @@ function AdminPanel({ showToast, user }) {
 
   return (
     <div className="space-y-6 pb-24">
-      {/* Page Header - Blue Gradient */}
+      {/* Page Header */}
       <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
@@ -405,7 +410,7 @@ function AdminPanel({ showToast, user }) {
         </button>
       </div>
 
-      {/* ========== USERS TAB ========== */}
+      {/* Users Tab Content - Rest of your JSX remains the same */}
       {activeTab === 'users' && (
         <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
@@ -424,7 +429,6 @@ function AdminPanel({ showToast, user }) {
             </div>
           </div>
 
-          {/* Stats Cards */}
           {stats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 bg-gray-50 border-b">
               <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -454,7 +458,6 @@ function AdminPanel({ showToast, user }) {
             </div>
           )}
 
-          {/* Users Table */}
           <div className="p-5">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -510,7 +513,7 @@ function AdminPanel({ showToast, user }) {
         </div>
       )}
 
-      {/* ========== CUSTOMERS TAB ========== */}
+      {/* Customers Tab Content */}
       {activeTab === 'customers' && (
         <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
@@ -579,7 +582,7 @@ function AdminPanel({ showToast, user }) {
         </div>
       )}
 
-      {/* ========== STOCK TAB ========== */}
+      {/* Stock Tab Content */}
       {activeTab === 'stock' && (
         <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
@@ -632,7 +635,7 @@ function AdminPanel({ showToast, user }) {
         </div>
       )}
 
-      {/* Add User Modal - Inline */}
+      {/* Modals */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
@@ -658,7 +661,6 @@ function AdminPanel({ showToast, user }) {
         </div>
       )}
 
-      {/* Edit User Modal - Separate Component */}
       {showEditModal && selectedUser && (
         <EditUserModal
           user={selectedUser}
@@ -671,7 +673,6 @@ function AdminPanel({ showToast, user }) {
         />
       )}
 
-      {/* Reset Password Modal - Inline */}
       {showResetModal && selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
@@ -693,7 +694,6 @@ function AdminPanel({ showToast, user }) {
         </div>
       )}
 
-      {/* Edit Customer Modal - Separate Component */}
       {showCustomerEditModal && selectedCustomer && (
         <EditCustomerModal
           customer={selectedCustomer}
@@ -705,7 +705,6 @@ function AdminPanel({ showToast, user }) {
         />
       )}
 
-      {/* Edit Stock Modal - Separate Component */}
       {showStockEditModal && selectedStock && (
         <EditStockModal
           stockItem={selectedStock}

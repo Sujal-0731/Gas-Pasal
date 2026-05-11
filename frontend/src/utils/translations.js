@@ -97,7 +97,6 @@ export const translations = {
     addNew: 'नयाँ',
     queueEmpty: 'क्यू खाली छ',
     noCustomersWaiting: 'कुनै ग्राहक पर्खिरहेको छैन',
-    empty: 'खाली',
     processing: 'प्रोसेसिङ...',
     remove: 'हटाउनुहोस्',
     removeFromQueue: 'क्यूबाट हटाउनुहोस्',
@@ -148,7 +147,6 @@ export const translations = {
     adminOnly: 'यो पृष्ठ केवल प्रशासकको लागि हो।',
     systemManagement: 'प्रणाली व्यवस्थापन',
     users: 'प्रयोगकर्ताहरू',
-    total: 'कुल',
     deactivate: 'निष्क्रिय गर्नुहोस्',
     activate: 'सक्रिय गर्नुहोस्',
     confirmDeactivate: 'लाई निष्क्रिय गर्न चाहनुहुन्छ?',
@@ -224,7 +222,6 @@ export const translations = {
     
     // Refill History
     refillHistoryDesc: 'सिलिन्डर रिफिल र साटासाटको विवरण',
-    search: 'खोज्नुहोस्',
     searchPlaceholder: 'मिति वा नोटले खोज्नुहोस्...',
     totalRefillSummary: 'कुल रिफिल सारांश',
     emptyExchange: 'खाली साटासाट',
@@ -286,7 +283,6 @@ export const translations = {
     edit: 'Edit',
     delete: 'Delete',
     add: 'Add',
-    search: 'Search',
     refresh: 'Refresh',
     close: 'Close',
     
@@ -382,8 +378,6 @@ export const translations = {
     // Stock
     cylinderType: 'Cylinder Type',
     filled: 'Filled',
-    empty: 'Empty',
-    total: 'Total',
     lowStock: 'Low Stock',
     outOfStock: 'Out of Stock',
     loadingStock: 'Loading stock information...',

@@ -1,4 +1,3 @@
-import React from 'react';
 import { IconDashboard, IconUsers, IconTransaction, IconQueue, IconStock, IconSettings } from '../icons';
 
 export function MobileNav({ activeTab, onTabChange, user }) {

@@ -1,5 +1,4 @@
-// Toast.jsx - Add console log to see if it's rendering
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 
 export const Toast = ({ message, type, onClose }) => { 
   useEffect(() => {

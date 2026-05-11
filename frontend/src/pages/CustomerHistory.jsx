@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   IconSearch, 
   IconPhone, 
@@ -6,8 +6,6 @@ import {
   IconChevronLeft,
   IconFilledCylinder,
   IconEmptyCylinder,
-  IconReturn,
-  IconNewPurchase,
   IconQueue,
   IconAlertCircle,
   IconUsers,
@@ -33,11 +31,7 @@ function CustomerHistory({ showToast, user }) {
 
   const isAdmin = user?.role === 'admin';
 
-  useEffect(() => {
-    loadCustomers();
-  }, []);
-
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/customers`, {
@@ -45,21 +39,25 @@ function CustomerHistory({ showToast, user }) {
       });
       const data = await response.json();
       if (data.success) {
-        setCustomers(data.data);
+        setCustomers(data.data || []);
       }
-    } catch (error) {
-      console.error('Error loading customers:', error);
+    } catch {
+      console.error('Error loading customers');
       if (showToast) showToast(t('error', language), 'error');
     }
     setLoading(false);
-  };
+  }, [showToast, language]);
+
+  useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
 
   const makePhoneCall = (phoneNumber) => {
     if (!phoneNumber) {
       if (showToast) showToast(t('phoneNotAvailable', language), 'error');
       return;
     }
-    window.location.href = `tel:${phoneNumber}`;
+    window.open(`tel:${phoneNumber}`, '_blank');
   };
 
   const copyPhoneNumber = async (phoneNumber) => {
@@ -67,7 +65,7 @@ function CustomerHistory({ showToast, user }) {
     try {
       await navigator.clipboard.writeText(phoneNumber);
       if (showToast) showToast(`${phoneNumber} ${t('copied', language)}`, 'success');
-    } catch (err) {
+    } catch {
       if (showToast) showToast(t('copyFailed', language), 'error');
     }
   };
@@ -75,7 +73,7 @@ function CustomerHistory({ showToast, user }) {
   const filteredCustomers = customers.filter(c => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
-    const nameMatch = c.name.toLowerCase().includes(searchLower);
+    const nameMatch = c.name?.toLowerCase().includes(searchLower);
     const phoneMatch = c.phone && c.phone.includes(searchTerm);
     return nameMatch || phoneMatch;
   });
@@ -91,8 +89,8 @@ function CustomerHistory({ showToast, user }) {
         setSelectedCustomer(customer);
         setHistory(data);
       }
-    } catch (error) {
-      console.error('Error loading history:', error);
+    } catch {
+      console.error('Error loading history');
       if (showToast) showToast(t('error', language), 'error');
     }
     setLoading(false);
@@ -105,10 +103,10 @@ function CustomerHistory({ showToast, user }) {
     }
   };
 
-  const handleCustomerUpdated = async (updatedCustomerData) => {
-    loadCustomers();
+  const handleCustomerUpdated = useCallback(async (updatedCustomerData) => {
+    await loadCustomers();
     
-    if (updatedCustomerData) {
+    if (updatedCustomerData && selectedCustomer) {
       setSelectedCustomer(updatedCustomerData);
       try {
         const response = await fetch(`${API_URL}/customers/${encodeURIComponent(updatedCustomerData.name)}/history`, {
@@ -118,16 +116,16 @@ function CustomerHistory({ showToast, user }) {
         if (data.success) {
           setHistory(data);
         } else {
-          showToast(t('error', language), 'error');
+          if (showToast) showToast(t('error', language), 'error');
         }
-      } catch (error) {
-        console.error('Error refreshing history:', error);
-        showToast(t('networkError', language), 'error');
+      } catch {
+        console.error('Error refreshing history');
+        if (showToast) showToast(t('networkError', language), 'error');
       }
     } else if (selectedCustomer) {
       await viewHistory(selectedCustomer);
     }
-  };
+  }, [loadCustomers, selectedCustomer, showToast, language]);
 
   if (selectedCustomer) {
     return (
@@ -140,7 +138,6 @@ function CustomerHistory({ showToast, user }) {
           <span>{t('allCustomers', language)}</span>
         </button>
 
-        {/* Customer Details Card */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-5">
             <div className="flex justify-between items-center flex-wrap gap-3">
@@ -197,22 +194,13 @@ function CustomerHistory({ showToast, user }) {
                 <p className="text-gray-900 font-medium">{history.customer.address}</p>
               </div>
             )}
-            
-            {history?.customer?.email && (
-              <div>
-                <p className="text-gray-500 text-sm mb-1">{t('email', language)}</p>
-                <p className="text-gray-900 font-medium">{history.customer.email}</p>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Total Exchanges */}
         <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white text-center py-4 rounded-xl font-bold text-xl">
           {t('totalTransactions', language)}: {history?.totalExchanges || 0}
         </div>
 
-        {/* Transactions List - WITH TRANSLATED CYLINDER NAMES */}
         {history?.transactions?.length === 0 ? (
           <div className="bg-white rounded-xl p-8 text-center text-gray-400">
             <IconAlertCircle className="w-14 h-14 mx-auto mb-3 opacity-50" />
@@ -220,14 +208,14 @@ function CustomerHistory({ showToast, user }) {
           </div>
         ) : (
           <div className="space-y-4">
-            {history?.transactions?.map((t, idx) => (
+            {history?.transactions?.map((transaction, idx) => (
               <div key={idx} className="bg-white rounded-xl p-5 shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-gray-900 text-base">{t.date}</span>
-                    <span className="text-sm text-gray-500">| {t.time}</span>
+                    <span className="font-bold text-gray-900 text-base">{transaction.date}</span>
+                    <span className="text-sm text-gray-500">| {transaction.time}</span>
                   </div>
-                  {t.source === 'queue' && (
+                  {transaction.source === 'queue' && (
                     <span className="bg-purple-100 text-purple-700 text-sm px-3 py-1.5 rounded-full flex items-center gap-1 font-semibold">
                       <IconQueue className="w-4 h-4" />
                       {t('fromQueue', language)}
@@ -235,9 +223,9 @@ function CustomerHistory({ showToast, user }) {
                   )}
                 </div>
                 
-                {t.source === 'queue' && t.queue_date_formatted && (
+                {transaction.source === 'queue' && transaction.queue_date_formatted && (
                   <div className="text-sm text-blue-600 mb-3 flex items-center gap-1 font-medium">
-                    <span>{t('addedToQueue', language)}: {t.queue_date_formatted} {t.queue_time_formatted ? `| ${t.queue_time_formatted}` : ''}</span>
+                    <span>{t('addedToQueue', language)}: {transaction.queue_date_formatted} {transaction.queue_time_formatted ? `| ${transaction.queue_time_formatted}` : ''}</span>
                   </div>
                 )}
                 
@@ -245,25 +233,25 @@ function CustomerHistory({ showToast, user }) {
                   <div className="flex items-center gap-2">
                     <IconEmptyCylinder className="w-5 h-5 text-red-500" />
                     <span className="text-base font-semibold text-gray-800">
-                      {t.empty_cylinder === 'कोही छैन' 
+                      {transaction.empty_cylinder === 'कोही छैन' 
                         ? t('newPurchase', language) 
-                        : translateCylinder(t.empty_cylinder, language)}
+                        : translateCylinder(transaction.empty_cylinder, language)}
                     </span>
                   </div>
                   <span className="text-gray-400 text-xl font-bold">→</span>
                   <div className="flex items-center gap-2">
                     <IconFilledCylinder className="w-5 h-5 text-green-600" />
                     <span className="text-base font-bold text-green-700">
-                      {t.filled_cylinder === 'कोही छैन' 
+                      {transaction.filled_cylinder === 'कोही छैन' 
                         ? t('return', language) 
-                        : translateCylinder(t.filled_cylinder, language)}
+                        : translateCylinder(transaction.filled_cylinder, language)}
                     </span>
                   </div>
                 </div>
                 
-                {t.remarks && (
+                {transaction.remarks && (
                   <div className="mt-3 text-sm text-gray-500 pt-2 border-t border-gray-100 font-medium">
-                    {t.remarks}
+                    {transaction.remarks}
                   </div>
                 )}
               </div>
@@ -271,7 +259,6 @@ function CustomerHistory({ showToast, user }) {
           </div>
         )}
 
-        {/* Edit Customer Modal */}
         {showCustomerEditModal && customerToEdit && (
           <EditCustomerModal
             customer={customerToEdit}
@@ -289,7 +276,6 @@ function CustomerHistory({ showToast, user }) {
 
   return (
     <div className="space-y-5 pb-24">
-      {/* Page Header */}
       <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
@@ -302,7 +288,6 @@ function CustomerHistory({ showToast, user }) {
         </div>
       </div>
 
-      {/* Search Section */}
       <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
         <div className="p-6">
           <div className="relative">
@@ -321,7 +306,6 @@ function CustomerHistory({ showToast, user }) {
         </div>
       </div>
 
-      {/* Customers List */}
       {loading ? (
         <div className="flex justify-center py-16">
           <div className="text-center">
@@ -374,7 +358,6 @@ function CustomerHistory({ showToast, user }) {
         </div>
       )}
 
-      {/* Refresh Button */}
       <button
         onClick={loadCustomers}
         className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"

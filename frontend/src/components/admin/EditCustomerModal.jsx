@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { IconX, IconCheck } from '../../components/icons';
-import { getAuthHeader } from '../../utils/api';
 import { useLanguage } from '../../context/LanguageContext';
 import { t } from '../../utils/translations';
 
@@ -26,18 +25,19 @@ function EditCustomerModal({ customer, onClose, onSuccess, showToast }) {
     
     setLoading(true);
     try {
+      // ✅ FIX: Remove getAuthHeader, add credentials: 'include'
       const response = await fetch(`${API_URL}/admin/customers/${customer.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeader()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           name: formData.name,
           phone: formData.phone || null,
           address: formData.address || null,
           remarks: formData.remarks || null
-        })
+        }),
+        credentials: 'include'  // ✅ Send httpOnly cookie
       });
       
       const data = await response.json();
@@ -48,7 +48,7 @@ function EditCustomerModal({ customer, onClose, onSuccess, showToast }) {
       } else {
         showToast(data.message, 'error');
       }
-    } catch (error) {
+    } catch {
       showToast(t('networkError', language), 'error');
     }
     setLoading(false);

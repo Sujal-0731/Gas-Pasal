@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   IconSearch, 
   IconFilledCylinder, 
@@ -6,8 +6,7 @@ import {
   IconUsers,
   IconQueue,
   IconCheck,
-  IconX,
-  IconRefresh
+  IconX
 } from '../components/icons';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
@@ -15,7 +14,6 @@ import { translateCylinder } from '../utils/cylinderTranslator';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// Actual values that go to backend (always Nepali)
 const cylinderValues = {
   lokpriya: 'लोकप्रिय',
   sugam: 'सुगम',
@@ -39,12 +37,10 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
   const searchInputRef = useRef(null);
   const showToastRef = useRef(showToast);
 
-  // Update showToast ref
   useEffect(() => {
     showToastRef.current = showToast;
   }, [showToast]);
 
-  // Handle queue customer selection
   useEffect(() => {
     if (queueCustomer) {
       setSelectedCustomer({ 
@@ -58,7 +54,29 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
     }
   }, [queueCustomer, language]);
 
-  // Debounced search
+  const searchCustomer = useCallback(async () => {
+    setSearching(true);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/customers?search=${encodeURIComponent(searchTerm)}`, {
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSearchResults(data.data);
+      } else {
+        setSearchResults([]);
+      }
+    } catch {
+      console.error('Search error');
+      showToastRef.current(t('networkError', language), 'error');
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+      setSearching(false);
+    }
+  }, [searchTerm, language]);
+
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -79,30 +97,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchTerm, queueCustomer]);
-
-  const searchCustomer = async () => {
-    setSearching(true);
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/customers?search=${encodeURIComponent(searchTerm)}`, {
-        credentials: 'include'
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSearchResults(data.data);
-      } else {
-        setSearchResults([]);
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-      showToastRef.current(t('networkError', language), 'error');
-      setSearchResults([]);
-    } finally {
-      setLoading(false);
-      setSearching(false);
-    }
-  };
+  }, [searchTerm, queueCustomer, searchCustomer]);
 
   const selectCustomer = (customer) => {
     setSelectedCustomer(customer);
@@ -176,12 +171,11 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
         
         setEmptyCylinder(cylinderValues.lokpriya);
         setFilledCylinder(cylinderValues.lokpriya);
-        
       } else {
         showToastRef.current(data.message || t('transactionFailed', language), 'error');
       }
-    } catch (error) {
-      console.error('Transaction error:', error);
+    } catch {
+      console.error('Transaction error');
       showToastRef.current(t('networkError', language), 'error');
     } finally {
       setLoading(false);
@@ -220,7 +214,6 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
 
   return (
     <div className="space-y-5 pb-24">
-      {/* Page Header */}
       <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
@@ -233,7 +226,6 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
         </div>
       </div>
 
-      {/* Main Form Card */}
       <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
         {(queueCustomer || selectedCustomer) && (
           <div className={`p-5 border-b ${queueCustomer ? 'bg-purple-50 border-purple-200' : 'bg-blue-50 border-blue-200'}`}>
@@ -255,7 +247,6 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
         )}
 
         <div className="p-6">
-          {/* Search Section */}
           <div className="mb-6">
             <label className="block text-base font-semibold text-gray-800 mb-2">
               {t('searchCustomer', language)}
@@ -308,7 +299,6 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
 
           <hr className="mb-6 border-gray-200" />
 
-          {/* Cylinder Selection Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
             <div className="p-4 rounded-xl border border-red-100 shadow-sm bg-red-50/30">
               <label className="block text-base font-bold mb-2 flex items-center gap-2 text-red-800">
@@ -368,7 +358,6 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
             </div>
           </div>
 
-          {/* Remarks Section */}
           <div className="mb-6">
             <label className="block text-base font-semibold text-gray-700 mb-2">
               {t('remarks', language)}
@@ -383,7 +372,6 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer }) {
             />
           </div>
 
-          {/* Submit Button */}
           <button
             onClick={recordTransaction}
             disabled={loading}

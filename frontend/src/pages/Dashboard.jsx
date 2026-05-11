@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { StockProgress } from '../components/dashboard/StockProgress';
 import { 
   IconDashboardHome,
   IconUsers, 
-  IconPackage, 
-  IconClock, 
   IconTrendingUp,
   IconTransaction,
   IconQueue,
-  IconNewCustomer,
   IconFilledCylinder,
   IconEmptyCylinder,
   IconReturn,
@@ -26,11 +23,8 @@ export function Dashboard({ showToast, onNavigate }) {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  // ✅ Wrap with useCallback to prevent recreation on every render
+  const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/dashboard`, {
@@ -44,13 +38,17 @@ export function Dashboard({ showToast, onNavigate }) {
       } else {
         throw new Error(data.message);
       }
-      
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+    } catch {
+      console.error('Error fetching dashboard data');
       if (showToast) showToast(t('error', language), 'error');
     }
     setLoading(false);
-  };
+  }, [showToast, language]);
+
+  // ✅ Add fetchDashboardData to dependency array
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -89,7 +87,6 @@ export function Dashboard({ showToast, onNavigate }) {
 
   return (
     <div className="space-y-6 pb-24">
-      {/* Page Header */}
       <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
@@ -102,9 +99,7 @@ export function Dashboard({ showToast, onNavigate }) {
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Total Customers */}
         <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition">
           <div className="flex items-center justify-between mb-3">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -115,7 +110,6 @@ export function Dashboard({ showToast, onNavigate }) {
           <p className="text-gray-600 font-medium">{t('totalCustomers', language)}</p>
         </div>
 
-        {/* Active Queue */}
         <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition">
           <div className="flex items-center justify-between mb-3">
             <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
@@ -126,7 +120,6 @@ export function Dashboard({ showToast, onNavigate }) {
           <p className="text-gray-600 font-medium">{t('activeQueue', language)}</p>
         </div>
 
-        {/* Filled Stock */}
         <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition">
           <div className="flex items-center justify-between mb-3">
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -137,7 +130,6 @@ export function Dashboard({ showToast, onNavigate }) {
           <p className="text-gray-600 font-medium">{t('filledStock', language)}</p>
         </div>
 
-        {/* Empty Stock */}
         <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition">
           <div className="flex items-center justify-between mb-3">
             <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
@@ -149,7 +141,6 @@ export function Dashboard({ showToast, onNavigate }) {
         </div>
       </div>
 
-      {/* Monthly Sales Card */}
       <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition">
         <div className="flex items-center justify-between">
           <div>
@@ -163,7 +154,6 @@ export function Dashboard({ showToast, onNavigate }) {
         </div>
       </div>
 
-      {/* Stock Overview Section - Using StockProgress Component */}
       <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
         <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
           <div className="flex justify-between items-center">
@@ -184,7 +174,6 @@ export function Dashboard({ showToast, onNavigate }) {
         </div>
       </div>
 
-      {/* Recent Transactions Section */}
       <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
         <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
           <div className="flex justify-between items-center">
@@ -202,14 +191,14 @@ export function Dashboard({ showToast, onNavigate }) {
         </div>
         
         <div className="p-4">
-          {recentTransactions.length === 0 ? (
+          {recentTransactions?.length === 0 ? (
             <div className="text-center py-12">
               <IconTransaction className="w-16 h-16 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 text-lg">{t('noTransactions', language)}</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {recentTransactions.map((transaction, idx) => (
+              {recentTransactions?.map((transaction, idx) => (
                 <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
                   <div className="flex-1">
                     <p className="text-lg font-semibold text-gray-800">{transaction.customer_name}</p>
