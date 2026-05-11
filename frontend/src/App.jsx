@@ -1,4 +1,4 @@
-// App.jsx - Fixed version with httpOnly cookies
+// App.jsx - Fixed version
 import React, { useState, useEffect } from 'react';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
@@ -30,32 +30,9 @@ function App() {
   };
 
   useEffect(() => {
-    // ✅ Check authentication status via API (cookie is sent automatically)
-    const checkAuth = async () => {
-      try {
-        const response = await fetch(`${API_URL}/auth/me`, {
-          credentials: 'include'  // ✅ Cookie sent automatically
-        });
-        
-        const data = await response.json();
-        
-        if (data.success && data.data?.user) {
-          setUser(data.data.user);
-          setIsAuthenticated(true);
-        } else {
-          setIsAuthenticated(false);
-          setUser(null);
-        }
-      } catch (error) {
-        console.error('Auth check error:', error);
-        setIsAuthenticated(false);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkAuth();
+    // ✅ Only check auth if we have reason to believe user might be logged in
+    // Don't call /me on initial load - wait for login
+    setLoading(false);
   }, []);
 
   const handleLogin = (userData) => {
@@ -65,7 +42,6 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      // ✅ Call logout endpoint to clear the cookie
       await fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include'
@@ -74,7 +50,6 @@ function App() {
       console.error('Logout error:', error);
     }
     
-    // ✅ Clear state (no localStorage to clear!)
     setIsAuthenticated(false);
     setUser(null);
     setActiveTab('dashboard');
@@ -106,7 +81,6 @@ function App() {
     );
   }
 
-  // Wrap EVERYTHING in LanguageProvider
   return (
     <LanguageProvider>
       {!isAuthenticated ? (

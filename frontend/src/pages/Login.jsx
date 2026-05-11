@@ -32,7 +32,6 @@ function Login({ onLogin, showToast }) {
       const data = await response.json();
       
       if (data.success) {
-        localStorage.setItem('user', JSON.stringify(data.data.user));
         showToast(`${t('welcome', language)}, ${data.data.user.username}!`, 'success');
         onLogin(data.data.user);
       } else {
