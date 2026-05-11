@@ -11,20 +11,21 @@ export function Header({ user, onLogout }) {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    try {
-      await fetch(`${API_URL}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      // Don't check response - just logout locally regardless
-    } catch (error) {
-      // Silently ignore - cookie might already be gone
-    } finally {
-      onLogout();  // Always logout locally
-      setIsLoggingOut(false);
-      setShowUserMenu(false);
-    }
+    
+    // Silently try to logout - don't await, don't check response
+    fetch(`${API_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    }).catch(() => {
+      // Completely ignore any errors
+    });
+    
+    // Always logout locally immediately
+    onLogout();
+    setIsLoggingOut(false);
+    setShowUserMenu(false);
   };
+  
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-gray-200 py-3 px-4 shadow-md">
       <div className="flex items-center justify-between">

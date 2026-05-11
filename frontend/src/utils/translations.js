@@ -258,9 +258,16 @@ export const translations = {
     loading: 'लोड हुँदै...',
     noData: 'कुनै डाटा छैन',
     networkError: 'इन्टरनेट जडान जाँच गर्नुहोस्',
+    loginFailed: 'गलत प्रयोगकर्ता नाम वा पासवर्ड',
+    networkError: 'नेटवर्क त्रुटि। कृपया पुन: प्रयास गर्नुहोस्',
+    usernamePasswordRequired: 'प्रयोगकर्ता नाम र पासवर्ड आवश्यक छ',
+
   },
   
   en: {
+    loginFailed: 'Invalid username or password',
+    networkError: 'Network error. Please try again.',
+    usernamePasswordRequired: 'Username and password are required',
     // Navigation
     dashboard: 'Dashboard',
     transactions: 'Transactions',

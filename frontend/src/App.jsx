@@ -30,8 +30,6 @@ function App() {
   };
 
   useEffect(() => {
-    // ✅ Only check auth if we have reason to believe user might be logged in
-    // Don't call /me on initial load - wait for login
     setLoading(false);
   }, []);
 
@@ -83,62 +81,61 @@ function App() {
 
   return (
     <LanguageProvider>
+      {/* ✅ Toast is ALWAYS rendered, independent of auth state */}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      
       {!isAuthenticated ? (
         <Login onLogin={handleLogin} showToast={showToast} />
       ) : (
-        <>
-          {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+        <MainLayout 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab} 
+          onLogout={handleLogout}
+          user={user}
+        >
+          {activeTab === 'dashboard' && (
+            <Dashboard showToast={showToast} onNavigate={handleNavigate} />
+          )}
           
-          <MainLayout 
-            activeTab={activeTab} 
-            onTabChange={setActiveTab} 
-            onLogout={handleLogout}
-            user={user}
-          >
-            {activeTab === 'dashboard' && (
-              <Dashboard showToast={showToast} onNavigate={handleNavigate} />
-            )}
-            
-            {activeTab === 'exchange' && (
-              <Exchange 
-                showToast={showToast} 
-                queueCustomer={queueCustomer}
-                onClearQueueCustomer={handleClearQueueCustomer}
-              />
-            )}
-            
-            {activeTab === 'newcustomer' && (
-              <NewCustomer showToast={showToast} />
-            )}
-            
-            {activeTab === 'customers' && (
-              <CustomerHistory showToast={showToast} user={user} />
-            )}
-            
-            {activeTab === 'queue' && (
-              <Queue 
-                showToast={showToast} 
-                onSelectCustomerFromQueue={handleQueueSelect}
-              />
-            )}
-            
-            {activeTab === 'dealer' && (
-              <DealerRefill showToast={showToast} />
-            )}
-            
-            {activeTab === 'refillhistory' && (
-              <RefillHistory />
-            )}
-            
-            {activeTab === 'stock' && (
-              <StockSummary />
-            )}
-            
-            {activeTab === 'admin' && (
-              <AdminPanel showToast={showToast} user={user} />
-            )}
-          </MainLayout>
-        </>
+          {activeTab === 'exchange' && (
+            <Exchange 
+              showToast={showToast} 
+              queueCustomer={queueCustomer}
+              onClearQueueCustomer={handleClearQueueCustomer}
+            />
+          )}
+          
+          {activeTab === 'newcustomer' && (
+            <NewCustomer showToast={showToast} />
+          )}
+          
+          {activeTab === 'customers' && (
+            <CustomerHistory showToast={showToast} user={user} />
+          )}
+          
+          {activeTab === 'queue' && (
+            <Queue 
+              showToast={showToast} 
+              onSelectCustomerFromQueue={handleQueueSelect}
+            />
+          )}
+          
+          {activeTab === 'dealer' && (
+            <DealerRefill showToast={showToast} />
+          )}
+          
+          {activeTab === 'refillhistory' && (
+            <RefillHistory />
+          )}
+          
+          {activeTab === 'stock' && (
+            <StockSummary />
+          )}
+          
+          {activeTab === 'admin' && (
+            <AdminPanel showToast={showToast} user={user} />
+          )}
+        </MainLayout>
       )}
     </LanguageProvider>
   );
