@@ -12,31 +12,19 @@ export function Header({ user, onLogout }) {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      const response = await fetch(`${API_URL}/auth/logout`, {
+      await fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
-        credentials: 'include'  // ✅ Important - sends the cookie to clear
+        credentials: 'include'
       });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // Call parent logout handler
-        onLogout();
-      } else {
-        console.error('Logout failed:', data.message);
-        // Still logout locally even if API fails
-        onLogout();
-      }
+      // Don't check response - just logout locally regardless
     } catch (error) {
-      console.error('Logout error:', error);
-      // Still logout locally even if API fails
-      onLogout();
+      // Silently ignore - cookie might already be gone
     } finally {
+      onLogout();  // Always logout locally
       setIsLoggingOut(false);
       setShowUserMenu(false);
     }
   };
-  
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-gray-200 py-3 px-4 shadow-md">
       <div className="flex items-center justify-between">
