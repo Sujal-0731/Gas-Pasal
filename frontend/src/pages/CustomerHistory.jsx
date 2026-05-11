@@ -170,7 +170,43 @@ function CustomerHistory({ showToast, user }) {
           </div>
           
           <div className="p-6 space-y-4">
-            {/* ... customer details ... */}
+            <div className="p-6 space-y-4">
+            <div className="flex flex-wrap justify-between items-start gap-4">
+              <div className="flex-1">
+                <p className="text-gray-500 text-sm mb-1">{t('name', language)}</p>
+                <p className="text-gray-900 font-semibold text-lg">{history?.customer?.name || '—'}</p>
+              </div>
+              {history?.customer?.phone && (
+                <div>
+                  <p className="text-gray-500 text-sm mb-1">{t('phone', language)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-gray-900 font-semibold">{history.customer.phone}</p>
+                    <button
+                      onClick={() => copyPhoneNumber(history.customer.phone)}
+                      className="p-1 hover:bg-gray-100 rounded transition-colors"
+                      title={t('copy', language)}
+                    >
+                      <IconCopy className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {history?.customer?.address && (
+              <div>
+                <p className="text-gray-500 text-sm mb-1">{t('address', language)}</p>
+                <p className="text-gray-900 font-medium">{history.customer.address}</p>
+              </div>
+            )}
+            
+            {history?.customer?.email && (
+              <div>
+                <p className="text-gray-500 text-sm mb-1">{t('email', language)}</p>
+                <p className="text-gray-900 font-medium">{history.customer.email}</p>
+              </div>
+            )}
+          </div>
           </div>
         </div>
 
