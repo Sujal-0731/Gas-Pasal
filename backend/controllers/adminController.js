@@ -390,6 +390,7 @@ const updateCustomer = async (req, res) => {
       .select()
       .single();
     
+
     if (error) throw error;
     res.json({ success: true, message: 'Customer updated', customer: data });
   } catch (error) {

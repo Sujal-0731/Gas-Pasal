@@ -77,7 +77,7 @@ const createTransaction = async (req, res) => {
       await stockService.updateFilledStock(filledCylinder, 1, 'decrease');
     }
     
-    if (emptyCylinder && emptyCylinder !== 'कोही छैन') {
+    if (!queueId && emptyCylinder && emptyCylinder !== 'कोही छैन') {
       console.log(`Updating empty stock for ${emptyCylinder} (increase by 1)`);
       await stockService.updateEmptyStock(emptyCylinder, 1, 'increase');
     }
