@@ -183,7 +183,10 @@ const createRefill = async (req, res) => {
     }
     
     logger.info(`Refill recorded: ${mode === 'exchange' ? 'Exchange' : 'Normal'} mode`);
-    
+    await notifyAllAdmins(
+      '🔄 Refill Completed',
+      `${req.user.username} completed refill for ${refillDate}`
+    );
     res.json({ 
       success: true, 
       message: mode === 'exchange' ? 'खाली साटासाट सफलतापूर्वक रेकर्ड गरियो' : 'रिफिल सफलतापूर्वक रेकर्ड गरियो' 

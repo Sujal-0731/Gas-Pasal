@@ -2,6 +2,7 @@
 const customerService = require('../services/customerService');
 const transactionService = require('../services/transactionService');
 const logger = require('../utils/logger');
+const { notifyAllAdmins } = require('../services/pushService');
 
 const getAllCustomers = async (req, res) => {
   try {
@@ -29,7 +30,12 @@ const createCustomer = async (req, res) => {
     const { data, error } = await customerService.createCustomer({ name, phone, address, remarks });
     
     if (error) throw error;
+    await notifyAllAdmins(
+      '📋 New Customer Created',
+      `${req.user.username} created customer: ${name}`
+    );
     res.json({ success: true, message: 'Customer added successfully', data });
+  
   } catch (error) {
     logger.error('Create customer error:', error);
     res.status(500).json({ success: false, message: error.message });

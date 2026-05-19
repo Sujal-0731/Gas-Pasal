@@ -60,7 +60,10 @@ const addToQueue = async (req, res) => {
     }
     
     logger.info(`Customer added to queue: ${customerName} (${emptyCylinder})`);
-    
+    await notifyAllAdmins(
+      '⏳ Queue Updated',
+      `${req.user.username} added ${customerName} to waiting list`
+    );
     res.json({ 
       success: true, 
       message: 'Added to queue', 

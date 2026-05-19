@@ -83,7 +83,10 @@ const createTransaction = async (req, res) => {
     }
     
     logger.info(`Transaction recorded: ${transactionId} for ${customerName}`);
-    
+    await notifyAllAdmins(
+      '💰 New Transaction',
+      `${req.user.username}: ${customerName} - ${filledCylinder || 'Return only'}`
+    );
     res.json({ 
       success: true, 
       message: 'Transaction recorded successfully', 

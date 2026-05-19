@@ -16,7 +16,7 @@ const stockRoutes = require('./routes/stockRoutes');
 const refillRoutes = require('./routes/refillRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-
+const pushroutes=require('./routes/pushRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -28,7 +28,7 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 if (!isProduction) {
-  allowedOrigins.push('http://localhost:5173', 'http://192.168.1.87:5173');
+  allowedOrigins.push('http://localhost:5173', 'http://192.168.1.188:5173');
 }
 
 app.use(cors({
@@ -120,7 +120,7 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/refills', refillRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
-
+app.use('/api/push', pushroutes);
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
