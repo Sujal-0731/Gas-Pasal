@@ -1,7 +1,7 @@
 // backend/controllers/queueController.js
 const supabase = require('../config/database');
 const logger = require('../utils/logger');
-
+const { notifyAllAdmins } = require('../services/pushService');
 // Get all active queue items
 const getQueue = async (req, res) => {
   try {
