@@ -13,6 +13,7 @@ import AdminPanel from './pages/AdminPanel';
 import Login from './pages/Login';
 import { Toast } from './components/ui/Toast';
 import { LanguageProvider } from './context/LanguageContext';
+import { subscribeAdminToPush } from './utils/pushNotifications';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -65,6 +66,9 @@ function App() {
   const handleLogin = (userData) => {
     setIsAuthenticated(true);
     setUser(userData);
+    if (userData.role === 'admin') {
+      subscribeAdminToPush(userData);
+    }
   };
 
   const handleLogout = async () => {
