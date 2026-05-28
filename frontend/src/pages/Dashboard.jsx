@@ -179,7 +179,6 @@ export function Dashboard({ showToast, onNavigate }) {
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-xl font-bold text-white">{t('recentTransactions', language)}</h3>
-              <p className="text-blue-100 text-sm mt-0.5">{t('lastFiveTransactions', language)}</p>
             </div>
             <button 
               onClick={() => onNavigate?.('exchange')}

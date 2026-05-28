@@ -9,8 +9,7 @@ const getDashboard = async (req, res) => {
     const { data: transactions, error: transError } = await supabase
       .from('transactions')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .order('created_at', { ascending: false });
     
     if (transError) throw transError;
     
@@ -40,16 +39,16 @@ const getDashboard = async (req, res) => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    
     const monthlySales = transactions?.filter(t => {
-      const transDate = new Date(t.created_at);
+      const isoString = t.created_at.replace(' ', 'T').replace(/(\+\d{2})$/, '$1:00');
+      const transDate = new Date(isoString);  
       return transDate.getMonth() === currentMonth && 
-             transDate.getFullYear() === currentYear &&
-             t.filled_cylinder !== 'कोही छैन';
+            transDate.getFullYear() === currentYear &&
+            t.filled_cylinder !== 'कोही छैन';
     }).length || 0;
     
     // Format recent transactions
-    const recentTransactions = (transactions || []).slice(0, 5).map(t => {
+    const recentTransactions = (transactions || []).slice(0, 30).map(t => {
       const transDate = new Date(t.created_at);
       return {
         ...t,
