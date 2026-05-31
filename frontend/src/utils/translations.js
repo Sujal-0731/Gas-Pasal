@@ -249,7 +249,7 @@ export const translations = {
     nameRequired: 'कृपया ग्राहकको नाम लेख्नुहोस्',
     invalidPhone: 'फोन नम्बर गलत छ (९८xxxxxxxx वा ९७xxxxxxxx)',
     
-    // Transactions Page (New)
+    // Transactions Page
     allTransactions: 'सबै कारोबार',
     transactionsDesc: 'सबै सिलिन्डर कारोबार हेर्नुहोस् र फिल्टर गर्नुहोस्',
     searchByCustomer: 'ग्राहक नामले खोज्नुहोस्...',
@@ -267,7 +267,13 @@ export const translations = {
     loadingMore: 'थप लोड हुँदै...',
     endOfList: 'कारोबारको अन्त्य',
     
-    // Push Notifications (New)
+    // Transactions Table Headers
+    customer: 'ग्राहक',
+    emptyCylinder: 'खाली सिलिन्डर',
+    filledCylinder: 'भरिएको सिलिन्डर',
+    source: 'स्रोत',
+    
+    // Push Notifications
     notifications: 'सूचनाहरू',
     markAllRead: 'सबै पढेको चिन्ह लगाउनुहोस्',
     clearAll: 'सबै हटाउनुहोस्',
@@ -277,7 +283,7 @@ export const translations = {
     newQueueNotif: 'क्यू अपडेट',
     newRefillNotif: 'रिफिल पूरा भयो',
     
-    // Forms (New)
+    // Forms
     selectOption: 'विकल्प चयन गर्नुहोस्',
     noMoreData: 'थप डाटा छैन',
     
@@ -540,7 +546,7 @@ export const translations = {
     nameRequired: 'Please enter customer name',
     invalidPhone: 'Invalid phone number (98xxxxxxxx or 97xxxxxxxx)',
     
-    // Transactions Page (New)
+    // Transactions Page
     allTransactions: 'All Transactions',
     transactionsDesc: 'View and filter all cylinder exchange records',
     searchByCustomer: 'Search by customer name...',
@@ -558,7 +564,13 @@ export const translations = {
     loadingMore: 'Loading more...',
     endOfList: 'End of transactions',
     
-    // Push Notifications (New)
+    // Transactions Table Headers
+    customer: 'Customer',
+    emptyCylinder: 'Empty Cylinder',
+    filledCylinder: 'Filled Cylinder',
+    source: 'Source',
+    
+    // Push Notifications
     notifications: 'Notifications',
     markAllRead: 'Mark all as read',
     clearAll: 'Clear all',
@@ -568,7 +580,7 @@ export const translations = {
     newQueueNotif: 'Queue Update',
     newRefillNotif: 'Refill Completed',
     
-    // Forms (New)
+    // Forms
     selectOption: 'Select an option',
     noMoreData: 'No more data',
     

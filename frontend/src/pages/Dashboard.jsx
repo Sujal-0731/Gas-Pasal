@@ -181,7 +181,7 @@ export function Dashboard({ showToast, onNavigate }) {
               <h3 className="text-xl font-bold text-white">{t('recentTransactions', language)}</h3>
             </div>
             <button 
-              onClick={() => onNavigate?.('exchange')}
+              onClick={() => onNavigate?.('transactions')}
               className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition flex items-center gap-1"
             >
               {t('viewAll', language)} <span className="text-lg">→</span>
