@@ -1,4 +1,4 @@
-// Service Worker for Push Notifications
+// frontend/public/sw.js
 self.addEventListener('install', (event) => {
   console.log('Service Worker installed');
   self.skipWaiting();
@@ -10,14 +10,11 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  console.log('📨 Push event received!', event);
-  
-  let data = { title: 'Notification', body: 'You have a new notification' };
+  let data = { title: 'Anam Store', body: 'You have a notification' };
   
   if (event.data) {
     try {
       data = event.data.json();
-      console.log('Push data:', data);
     } catch (e) {
       console.log('Could not parse push data');
     }
@@ -25,11 +22,24 @@ self.addEventListener('push', (event) => {
   
   const options = {
     body: data.body,
-    icon: '/logo.png',
-    badge: '/logo.png',
+    icon: '/logo192.png',
+    badge: '/badge.png',
     vibrate: [200, 100, 200],
-    data: { url: data.url || '/' },
-    requireInteraction: true  // Keeps notification visible until clicked
+    data: {
+      url: data.url || '/',
+      timestamp: Date.now()
+    },
+    requireInteraction: true,
+    actions: [
+      {
+        action: 'view',
+        title: '👁️ View'
+      },
+      {
+        action: 'dismiss',
+        title: '✕ Dismiss'
+      }
+    ]
   };
   
   event.waitUntil(
@@ -38,9 +48,17 @@ self.addEventListener('push', (event) => {
 });
 
 self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
   event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data?.url || '/')
-  );
+  
+  if (event.action === 'view') {
+    event.waitUntil(
+      clients.openWindow(event.notification.data?.url || '/')
+    );
+  } else if (event.action === 'dismiss') {
+    // Just close
+  } else {
+    event.waitUntil(
+      clients.openWindow(event.notification.data?.url || '/')
+    );
+  }
 });

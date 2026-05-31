@@ -9,7 +9,8 @@ import {
   IconStock,
   IconLogout,
   IconSettings,
-  IconChevronLeft
+  IconChevronLeft,
+  IconList
 } from '../icons';
 import { useLanguage } from '../../context/LanguageContext';
 import { t } from '../../utils/translations';
@@ -17,7 +18,8 @@ import { t } from '../../utils/translations';
 // Base navigation for all users
 const baseNavigation = [
   { id: 'dashboard', name: 'dashboard', nameEn: 'Dashboard', icon: IconDashboard },
-  { id: 'exchange', name: 'transactions', nameEn: 'Transactions', icon: IconTransaction },
+  { id: 'exchange', name: 'transactions', nameEn: 'Exchange', icon: IconTransaction },
+  { id: 'transactions', name: 'allTransactions', nameEn: 'All Transactions', icon: IconList }, 
   { id: 'customers', name: 'customers', nameEn: 'Customer List', icon: IconCustomers },
   { id: 'newcustomer', name: 'newCustomer', nameEn: 'New Customer', icon: IconNewCustomer },
   { id: 'queue', name: 'queue', nameEn: 'Queue', icon: IconQueue },
@@ -76,7 +78,7 @@ export function Sidebar({ activeTab, onTabChange, onLogout, user }) {
 
   return (
     <>
-      {/* Mobile: Fixed hamburger button - Improved */}
+      {/* Mobile: Fixed hamburger button */}
       {isMobile && (
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -89,7 +91,7 @@ export function Sidebar({ activeTab, onTabChange, onLogout, user }) {
         </button>
       )}
 
-      {/* Overlay - Improved */}
+      {/* Overlay */}
       {isMobile && isOpen && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300"
@@ -101,13 +103,13 @@ export function Sidebar({ activeTab, onTabChange, onLogout, user }) {
       <aside className={`
         bg-white border-r border-gray-200 
         flex flex-col 
-        transition-all duration-300 ease-in-out
+        transition-transform duration-300 ease-in-out
         fixed top-0 left-0 h-full z-50
         ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
         md:translate-x-0 md:relative md:shadow-md
         w-80
       `}>
-        {/* Sidebar Header - Improved */}
+        {/* Sidebar Header */}
         <div className="h-20 flex items-center px-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
@@ -130,7 +132,7 @@ export function Sidebar({ activeTab, onTabChange, onLogout, user }) {
           )}
         </div>
 
-        {/* Navigation - Improved with better hover and active states */}
+        {/* Navigation */}
         <nav className="flex-1 py-6 px-4 space-y-1.5 overflow-y-auto">
           {navigation.map((item) => {
             const Icon = item.icon;
@@ -179,7 +181,7 @@ export function Sidebar({ activeTab, onTabChange, onLogout, user }) {
           })}
         </nav>
 
-        {/* User Info Section - Added */}
+        {/* User Info Section */}
         {user && (
           <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
             <div className="flex items-center gap-3 px-2 py-2 rounded-xl">
@@ -198,7 +200,7 @@ export function Sidebar({ activeTab, onTabChange, onLogout, user }) {
           </div>
         )}
 
-        {/* Footer - Logout - Improved */}
+        {/* Footer - Logout */}
         <div className="p-4 border-t border-gray-200">
           <button
             onClick={handleLogout}

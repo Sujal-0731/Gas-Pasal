@@ -114,7 +114,66 @@ const formatTransactionsWithDates = (transactions) => {
   });
 };
 
-// Get all transactions (for admin/reports)
+// ✅ NEW: Get all transactions with pagination and filters
+const getAllTransactionsWithFilters = async (filters = {}) => {
+  const { 
+    page = 1, 
+    limit = 20, 
+    search, 
+    cylinder, 
+    date_from, 
+    date_to 
+  } = filters;
+  
+  const offset = (parseInt(page) - 1) * parseInt(limit);
+  
+  let query = supabase
+    .from('transactions')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false });
+  
+  // Search by customer name
+  if (search && search.trim()) {
+    query = query.ilike('customer_name', `%${search.trim()}%`);
+  }
+  
+  // Filter by sold gas (filled cylinder)
+  if (cylinder && cylinder !== 'all') {
+    query = query.eq('filled_cylinder', cylinder);
+  }
+  
+  // Date range filters
+  if (date_from) {
+    query = query.gte('created_at', date_from);
+  }
+  if (date_to) {
+    query = query.lte('created_at', `${date_to} 23:59:59`);
+  }
+  
+  const { data, error, count } = await query
+    .range(offset, offset + parseInt(limit) - 1);
+  
+  if (error) {
+    logger.error('Get all transactions error:', error);
+    return { data: [], error, pagination: null };
+  }
+  
+  // Format dates for display
+  const formattedTransactions = formatTransactionsWithDates(data || []);
+  
+  return {
+    data: formattedTransactions,
+    error: null,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages: Math.ceil((count || 0) / parseInt(limit)),
+      totalItems: count || 0,
+      itemsPerPage: parseInt(limit)
+    }
+  };
+};
+
+// Get all transactions (simple, for admin/reports)
 const getAllTransactions = async (limit = 100) => {
   const { data, error } = await supabase
     .from('transactions')
@@ -133,5 +192,6 @@ module.exports = {
   completeQueueItem,
   getQueueDate,
   formatTransactionsWithDates,
-  getAllTransactions
+  getAllTransactions,
+  getAllTransactionsWithFilters  // ✅ Export the new function
 };

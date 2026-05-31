@@ -11,6 +11,7 @@ import StockSummary from './pages/StockSummary';
 import Queue from './pages/Queue';
 import AdminPanel from './pages/AdminPanel';
 import Login from './pages/Login';
+import Transactions from './pages/Transactions';
 import { Toast } from './components/ui/Toast';
 import { LanguageProvider } from './context/LanguageContext';
 import { subscribeAdminToPush } from './utils/pushNotifications';
@@ -66,7 +67,7 @@ function App() {
   const handleLogin = (userData) => {
     setIsAuthenticated(true);
     setUser(userData);
-    if (userData.role === 'admin') {
+    if (userData.role === 'admin'||userData.role === 'mom') {
       subscribeAdminToPush(userData);
     }
   };
@@ -163,7 +164,9 @@ function App() {
           {activeTab === 'stock' && (
             <StockSummary />
           )}
-          
+          {activeTab === 'transactions' && (
+            <Transactions showToast={showToast} />
+          )}
           {activeTab === 'admin' && (
             <AdminPanel showToast={showToast} user={user} />
           )}

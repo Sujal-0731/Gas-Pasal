@@ -3,6 +3,7 @@ const stockService = require('../services/stockService');
 const transactionService = require('../services/transactionService');
 const logger = require('../utils/logger');
 const { notifyAllAdmins } = require('../services/pushService');
+
 const createTransaction = async (req, res) => {
   try {
     const { customerName, emptyCylinder, filledCylinder, remarks, queueId } = req.body;
@@ -130,4 +131,36 @@ const getCustomerHistory = async (req, res) => {
   }
 };
 
-module.exports = { createTransaction, getCustomerHistory };
+// ✅ Simplified - uses transactionService (no database code!)
+const getAllTransactions = async (req, res) => {
+  try {
+    const { page, limit, search, cylinder, date_from, date_to } = req.query;
+    
+    const result = await transactionService.getAllTransactionsWithFilters({
+      page,
+      limit,
+      search,
+      cylinder,
+      date_from,
+      date_to
+    });
+    
+    if (result.error) throw result.error;
+    
+    res.json({
+      success: true,
+      transactions: result.data,
+      pagination: result.pagination
+    });
+    
+  } catch (error) {
+    logger.error('Get all transactions error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { 
+  createTransaction, 
+  getCustomerHistory, 
+  getAllTransactions
+};

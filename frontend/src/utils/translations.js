@@ -53,6 +53,10 @@ export const translations = {
     customerList: 'ग्राहक सूची',
     newTransaction: 'नयाँ लेनदेन',
     viewQueue: 'क्यू हेर्नुहोस्',
+    currentStockStatus: 'हालको स्टक अवस्था',
+    stockSummary: 'स्टक सारांश',
+    totalFilled: 'जम्मा भरिएको',
+    totalEmpty: 'जम्मा खाली',
     
     // Exchange / Transactions
     exchange: 'लेनदेन',
@@ -124,7 +128,6 @@ export const translations = {
     filledPercentage: 'भरिएको',
     emptyPercentage: 'खाली',
     stockManagement: 'स्टक व्यवस्थापन',
-    currentStockStatus: 'हालको स्टक अवस्था',
     
     // Admin
     userManagement: 'प्रयोगकर्ता व्यवस्थापन',
@@ -165,7 +168,6 @@ export const translations = {
     
     // Customer History
     customerHistory: 'ग्राहक इतिहास',
-    searchCustomer: 'ग्राहक खोज्नुहोस् र लेनदेन हेर्नुहोस्',
     searchNameOrPhone: 'नाम वा फोन नम्बरले खोज्नुहोस्...',
     searchTip: 'नाम वा फोन नम्बरको कुनै भाग लेख्नुहोस्',
     noCustomers: 'कुनै ग्राहक छैन',
@@ -225,8 +227,6 @@ export const translations = {
     searchPlaceholder: 'मिति वा नोटले खोज्नुहोस्...',
     totalRefillSummary: 'कुल रिफिल सारांश',
     emptyExchange: 'खाली साटासाट',
-    totalFilled: 'जम्मा भरिएको',
-    totalEmpty: 'जम्मा खाली',
     noRefillHistory: 'कुनै रिफिल इतिहास छैन',
     noRefillRecords: 'अहिलेसम्म कुनै रिफिल वा साटासाट रेकर्ड छैन',
     emptyExchangeLabel: 'खाली साटासाट',
@@ -249,22 +249,47 @@ export const translations = {
     nameRequired: 'कृपया ग्राहकको नाम लेख्नुहोस्',
     invalidPhone: 'फोन नम्बर गलत छ (९८xxxxxxxx वा ९७xxxxxxxx)',
     
+    // Transactions Page (New)
+    allTransactions: 'सबै कारोबार',
+    transactionsDesc: 'सबै सिलिन्डर कारोबार हेर्नुहोस् र फिल्टर गर्नुहोस्',
+    searchByCustomer: 'ग्राहक नामले खोज्नुहोस्...',
+    filters: 'फिल्टर',
+    exportCSV: 'एक्सपोर्ट CSV',
+    exportSuccess: 'सफलतापूर्वक एक्सपोर्ट गरियो',
+    dateFrom: 'बाट मिति',
+    dateTo: 'सम्म मिति',
+    page: 'पृष्ठ',
+    of: 'को',
+    direct: 'प्रत्यक्ष',
+    returnOnly: 'मात्र फिर्ता',
+    allCylinders: 'सबै सिलिन्डर',
+    soldGas: 'बिक्री भएको ग्यास',
+    loadingMore: 'थप लोड हुँदै...',
+    endOfList: 'कारोबारको अन्त्य',
+    
+    // Push Notifications (New)
+    notifications: 'सूचनाहरू',
+    markAllRead: 'सबै पढेको चिन्ह लगाउनुहोस्',
+    clearAll: 'सबै हटाउनुहोस्',
+    noNotifications: 'कुनै सूचना छैन',
+    newCustomerNotif: 'नयाँ ग्राहक',
+    newTransactionNotif: 'नयाँ कारोबार',
+    newQueueNotif: 'क्यू अपडेट',
+    newRefillNotif: 'रिफिल पूरा भयो',
+    
+    // Forms (New)
+    selectOption: 'विकल्प चयन गर्नुहोस्',
+    noMoreData: 'थप डाटा छैन',
+    
     // Messages
     success: 'सफल',
     error: 'त्रुटि',
     loading: 'लोड हुँदै...',
     noData: 'कुनै डाटा छैन',
     networkError: 'इन्टरनेट जडान जाँच गर्नुहोस्',
-    loginFailed: 'गलत प्रयोगकर्ता नाम वा पासवर्ड',
-    networkError: 'नेटवर्क त्रुटि। कृपया पुन: प्रयास गर्नुहोस्',
-    usernamePasswordRequired: 'प्रयोगकर्ता नाम र पासवर्ड आवश्यक छ',
-
   },
   
   en: {
-    loginFailed: 'Invalid username or password',
-    networkError: 'Network error. Please try again.',
-    usernamePasswordRequired: 'Username and password are required',
     // Navigation
     dashboard: 'Dashboard',
     transactions: 'Transactions',
@@ -283,6 +308,7 @@ export const translations = {
     edit: 'Edit',
     delete: 'Delete',
     add: 'Add',
+    search: 'Search',
     refresh: 'Refresh',
     close: 'Close',
     
@@ -294,7 +320,7 @@ export const translations = {
     login: 'Login',
     loggingIn: 'Logging in...',
     welcome: 'Welcome to Anam Store',
-    loginFailed: 'Login failed',
+    loginFailed: 'Invalid username or password',
     usernamePasswordRequired: 'Username and password are required',
     appDescription: 'Gas Cylinder Management System',
     contactAdmin: 'Contact: System Administrator',
@@ -316,6 +342,10 @@ export const translations = {
     customerList: 'Customer List',
     newTransaction: 'New Transaction',
     viewQueue: 'View Queue',
+    currentStockStatus: 'Current Stock Status',
+    stockSummary: 'Stock Summary',
+    totalFilled: 'Total Filled',
+    totalEmpty: 'Total Empty',
     
     // Exchange / Transactions
     exchange: 'Exchange',
@@ -378,6 +408,8 @@ export const translations = {
     // Stock
     cylinderType: 'Cylinder Type',
     filled: 'Filled',
+    empty: 'Empty',
+    total: 'Total',
     lowStock: 'Low Stock',
     outOfStock: 'Out of Stock',
     loadingStock: 'Loading stock information...',
@@ -386,7 +418,6 @@ export const translations = {
     filledPercentage: 'Filled',
     emptyPercentage: 'Empty',
     stockManagement: 'Stock Management',
-    currentStockStatus: 'Current Stock Status',
     
     // Admin
     userManagement: 'User Management',
@@ -428,7 +459,6 @@ export const translations = {
     
     // Customer History
     customerHistory: 'Customer History',
-    searchCustomer: 'Search customers and view transactions',
     searchNameOrPhone: 'Search by name or phone number...',
     searchTip: 'Enter any part of name or phone number',
     noCustomers: 'No customers found',
@@ -485,12 +515,9 @@ export const translations = {
     
     // Refill History
     refillHistoryDesc: 'Cylinder refill and exchange details',
-    search: 'Search',
     searchPlaceholder: 'Search by date or notes...',
     totalRefillSummary: 'Total Refill Summary',
     emptyExchange: 'Empty Exchange',
-    totalFilled: 'Total Filled',
-    totalEmpty: 'Total Empty',
     noRefillHistory: 'No Refill History',
     noRefillRecords: 'No refill or exchange records yet',
     emptyExchangeLabel: 'Empty Exchange',
@@ -512,6 +539,38 @@ export const translations = {
     registrationFailed: 'Customer registration failed',
     nameRequired: 'Please enter customer name',
     invalidPhone: 'Invalid phone number (98xxxxxxxx or 97xxxxxxxx)',
+    
+    // Transactions Page (New)
+    allTransactions: 'All Transactions',
+    transactionsDesc: 'View and filter all cylinder exchange records',
+    searchByCustomer: 'Search by customer name...',
+    filters: 'Filters',
+    exportCSV: 'Export CSV',
+    exportSuccess: 'Exported successfully',
+    dateFrom: 'From Date',
+    dateTo: 'To Date',
+    page: 'Page',
+    of: 'of',
+    direct: 'Direct',
+    returnOnly: 'Return Only',
+    allCylinders: 'All Cylinders',
+    soldGas: 'Sold Gas',
+    loadingMore: 'Loading more...',
+    endOfList: 'End of transactions',
+    
+    // Push Notifications (New)
+    notifications: 'Notifications',
+    markAllRead: 'Mark all as read',
+    clearAll: 'Clear all',
+    noNotifications: 'No notifications',
+    newCustomerNotif: 'New Customer',
+    newTransactionNotif: 'New Transaction',
+    newQueueNotif: 'Queue Update',
+    newRefillNotif: 'Refill Completed',
+    
+    // Forms (New)
+    selectOption: 'Select an option',
+    noMoreData: 'No more data',
     
     // Messages
     success: 'Success',
