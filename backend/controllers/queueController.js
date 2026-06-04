@@ -1,7 +1,7 @@
 // backend/controllers/queueController.js
 const supabase = require('../config/database');
 const logger = require('../utils/logger');
-const { notifyAllAdmins } = require('../services/pushService');
+const { notifyQueueUpdate  } = require('../services/pushService');
 // Get all active queue items
 const getQueue = async (req, res) => {
   try {
@@ -60,9 +60,12 @@ const addToQueue = async (req, res) => {
     }
     
     logger.info(`Customer added to queue: ${customerName} (${emptyCylinder})`);
-    await notifyAllAdmins(
-      '⏳ Queue Updated',
-      `${req.user.username} added ${customerName} to waiting list`
+    await notifyQueueUpdate(
+      req.user.role,    
+      req.user.id,      
+      customerName,       
+      emptyCylinder,    
+      data[0]?.id        
     );
     res.json({ 
       success: true, 

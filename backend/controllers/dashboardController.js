@@ -46,6 +46,7 @@ const getDashboard = async (req, res) => {
             transDate.getFullYear() === currentYear &&
             t.filled_cylinder !== 'कोही छैन';
     }).length || 0;
+    console.log(monthlySales);
     
     // Format recent transactions
     const recentTransactions = (transactions || []).slice(0, 30).map(t => {

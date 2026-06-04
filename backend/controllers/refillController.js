@@ -2,7 +2,7 @@
 const supabase = require('../config/database');
 const stockService = require('../services/stockService');
 const logger = require('../utils/logger');
-const { notifyAllAdmins } = require('../services/pushService');
+const { notifyRefillCompleted  } = require('../services/pushService');
 const createRefill = async (req, res) => {
   try {
     const { 
@@ -183,9 +183,10 @@ const createRefill = async (req, res) => {
     }
     
     logger.info(`Refill recorded: ${mode === 'exchange' ? 'Exchange' : 'Normal'} mode`);
-    await notifyAllAdmins(
-      '🔄 Refill Completed',
-      `${req.user.username} completed refill for ${refillDate}`
+    await notifyRefillCompleted(
+      req.user.role,    
+      req.user.id,        
+      refillDate
     );
     res.json({ 
       success: true, 

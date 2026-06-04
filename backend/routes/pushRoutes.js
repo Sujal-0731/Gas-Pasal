@@ -6,7 +6,6 @@ const { saveSubscription, getUserDevices, removeDevice } = require('../services/
 
 // Subscribe (supports multiple devices)
 router.post('/subscribe', authenticate, async (req, res) => {
-  console.log('🔵 Subscribe request for user:', req.user.id);
   
   try {
     const { subscription } = req.body;

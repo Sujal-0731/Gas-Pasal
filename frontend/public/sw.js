@@ -1,14 +1,4 @@
 // frontend/public/sw.js
-self.addEventListener('install', (event) => {
-  console.log('Service Worker installed');
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker activated');
-  event.waitUntil(clients.claim());
-});
-
 self.addEventListener('push', (event) => {
   let data = { title: 'Anam Store', body: 'You have a notification' };
   
@@ -23,23 +13,15 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body,
     icon: '/logo192.png',
-    badge: '/badge.png',
+    badge: '/logo192.png',
     vibrate: [200, 100, 200],
     data: {
       url: data.url || '/',
-      timestamp: Date.now()
+      type: data.type,
+      timestamp: data.timestamp
     },
     requireInteraction: true,
-    actions: [
-      {
-        action: 'view',
-        title: '👁️ View'
-      },
-      {
-        action: 'dismiss',
-        title: '✕ Dismiss'
-      }
-    ]
+    silent: false
   };
   
   event.waitUntil(
@@ -47,16 +29,12 @@ self.addEventListener('push', (event) => {
   );
 });
 
+// Handle notification click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
-  if (event.action === 'view') {
-    event.waitUntil(
-      clients.openWindow(event.notification.data?.url || '/')
-    );
-  } else if (event.action === 'dismiss') {
-    // Just close
-  } else {
+  // If they clicked "View Details" button or the notification itself
+  if (event.action === 'view' || !event.action) {
     event.waitUntil(
       clients.openWindow(event.notification.data?.url || '/')
     );

@@ -18,9 +18,81 @@ const getPlatform = (userAgent) => {
   return 'unknown';
 };
 
-// Save subscription for a user (supports multiple devices)
-const saveSubscription = async (userId, subscription, req) => {
+// Helper to translate cylinder for notification
+const translateCylinderForNotif = (cylinderName) => {
+  const translations = {
+    'लोकप्रिय': 'Lokpriya',
+    'सुगम': 'Sugam',
+    'एभरेस्ट': 'Everest',
+    'अन्य / Other': 'Other',
+    'कोही छैन': 'None'
+  };
+  return translations[cylinderName] || cylinderName;
+};
+
+// Helper to get formatted date and time
+const getFormattedDateTime = () => {
+  const now = new Date();
+  return now.toLocaleString(); // "6/4/2026, 11:45:30 AM"
+};
+
+// Send notification to a specific user
+const notifyUser = async (userId, title, body, data = {}) => {
+  console.log(`🔍 Looking for subscriptions for user: ${userId}`);
   
+  const { data: subscriptions, error } = await supabase
+    .from('push_subscriptions')
+    .select('subscription, device_info')
+    .eq('user_id', userId);
+  
+  if (error) {
+    console.error(`Error fetching subscriptions for ${userId}:`, error);
+    return false;
+  }
+  
+  if (!subscriptions?.length) {
+    console.log(`❌ No subscriptions for user ${userId}`);
+    return false;
+  }
+  
+  console.log(`📱 Found ${subscriptions.length} subscription(s) for user ${userId}`);
+  
+  let successCount = 0;
+  
+  for (const sub of subscriptions) {
+    console.log(`📤 Sending push to: ${sub.device_info?.platform || 'unknown device'}`);
+    try {
+      await webpush.sendNotification(
+        sub.subscription,
+        JSON.stringify({ title, body, ...data }),
+        { TTL: 86400 }
+      );
+      successCount++;
+      console.log(`✅ Push sent successfully`);
+      
+      await supabase
+        .from('push_subscriptions')
+        .update({ last_used: new Date() })
+        .eq('subscription->>endpoint', sub.subscription.endpoint);
+        
+    } catch (error) {
+      console.error(`❌ Push failed:`, error.message);
+      
+      if (error.statusCode === 410) {
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('subscription->>endpoint', sub.subscription.endpoint);
+        console.log('Removed expired subscription');
+      }
+    }
+  }
+  
+  return successCount > 0;
+};
+
+// Save subscription for a user
+const saveSubscription = async (userId, subscription, req) => {
   const userAgent = req.headers['user-agent'] || 'unknown';
   const deviceInfo = {
     platform: getPlatform(userAgent),
@@ -30,7 +102,6 @@ const saveSubscription = async (userId, subscription, req) => {
   };
   
   try {
-    // Check if subscription already exists for this endpoint
     const { data: existing } = await supabase
       .from('push_subscriptions')
       .select('id')
@@ -39,7 +110,6 @@ const saveSubscription = async (userId, subscription, req) => {
       .maybeSingle();
     
     if (existing) {
-      // Update existing
       const { error } = await supabase
         .from('push_subscriptions')
         .update({
@@ -55,9 +125,9 @@ const saveSubscription = async (userId, subscription, req) => {
         console.error('Update error:', error.message);
         return false;
       }
+      console.log(`✅ Updated subscription for user ${userId}`);
       return true;
     } else {
-      // Insert new
       const { error } = await supabase
         .from('push_subscriptions')
         .insert({
@@ -74,6 +144,7 @@ const saveSubscription = async (userId, subscription, req) => {
         console.error('Insert error:', error.message);
         return false;
       }
+      console.log(`✅ New subscription saved for user ${userId}`);
       return true;
     }
   } catch (error) {
@@ -82,99 +153,132 @@ const saveSubscription = async (userId, subscription, req) => {
   }
 };
 
-// Send notification to ALL devices of a user
-const notifyUser = async (userId, title, body, data = {}) => {
-  const { data: subscriptions, error } = await supabase
-    .from('push_subscriptions')
-    .select('subscription, device_info')
-    .eq('user_id', userId);
+// Send notification to ALL users EXCEPT the performer
+const notifyOtherUsers = async (performerRole, performerId, title, body, data = {}) => {
+  console.log(`🔵 notifyOtherUsers called: performerRole=${performerRole}, performerId=${performerId}`);
   
-  if (error || !subscriptions?.length) {
-    console.log(`No subscriptions for user ${userId}`);
-    return false;
-  }
-  
-  let successCount = 0;
-  
-  for (const sub of subscriptions) {
-    try {
-      await webpush.sendNotification(
-        sub.subscription,
-        JSON.stringify({ title, body, ...data }),
-        { TTL: 86400 } // 24 hours TTL
-      );
-      successCount++;
-      
-      // Update last_used
-      await supabase
-        .from('push_subscriptions')
-        .update({ last_used: new Date() })
-        .eq('subscription->>endpoint', sub.subscription.endpoint);
-        
-    } catch (error) {
-      console.error('Push failed:', error.message);
-      
-      // Remove invalid subscription (410 = Gone)
-      if (error.statusCode === 410) {
-        await supabase
-          .from('push_subscriptions')
-          .delete()
-          .eq('subscription->>endpoint', sub.subscription.endpoint);
-        console.log('Removed expired subscription');
-      }
-    }
-  }
-  
-  return successCount > 0;
-};
-
-// Send to all admins
-const notifyAllAdmins = async (title, body, data = {}) => {
-  const { data: admins, error } = await supabase
+  // Get ALL active users
+  const { data: allUsers, error } = await supabase
     .from('users')
-    .select('id')
-    .eq('role', 'admin')
+    .select('id, username, role')
     .eq('is_active', true);
   
   if (error) {
-    console.error('Error fetching admins:', error);
+    console.error(`Error finding users:`, error);
     return;
   }
   
-  console.log(`Sending notification to ${admins?.length || 0} admins`);
-  
-  for (const admin of admins || []) {
-    await notifyUser(admin.id, title, body, data);
+  if (!allUsers || allUsers.length === 0) {
+    console.log(`❌ No users found in database`);
+    return;
   }
+  
+  console.log(`📋 Found ${allUsers.length} active user(s):`);
+  allUsers.forEach(u => {
+    console.log(`   - ${u.username} (${u.role}) - ${u.id}`);
+  });
+  
+  // Filter out the performer
+  const usersToNotify = allUsers.filter(u => u.id !== performerId);
+  
+  console.log(`📤 Will notify ${usersToNotify.length} user(s) (excluding performer)`);
+  
+  // Send notification to EACH user except the performer
+  let successCount = 0;
+  
+  for (const user of usersToNotify) {
+    console.log(`📤 Sending to ${user.username} (${user.role})`);
+    const sent = await notifyUser(user.id, title, body, data);
+    if (sent) successCount++;
+  }
+  
+  console.log(`✅ Sent to ${successCount} of ${usersToNotify.length} users`);
 };
 
-// Get all devices for a user
-const getUserDevices = async (userId) => {
-  const { data, error } = await supabase
-    .from('push_subscriptions')
-    .select('id, device_info, user_agent, last_used, created_at')
-    .eq('user_id', userId)
-    .order('last_used', { ascending: false });
+// Send customer notification
+const notifyNewCustomer = async (performerRole, performerId, customerName, customerPhone, customerId) => {
+  const title = 'Anam Store: Customer Added';
+  const dateTime = getFormattedDateTime();
+  const body = `${customerName} was added as a new customer\n📅 ${dateTime}\n👤 ${performerRole === 'admin' ? 'Admin' : 'Operator'}`;
   
-  if (error) return [];
-  return data || [];
+  console.log(`🔔 New Customer Notification: ${customerName} by ${performerRole}`);
+  
+  await notifyOtherUsers(performerRole, performerId, title, body, {
+    type: 'customer',
+    url: `/customers/${customerId}`,
+    customerName,
+    customerPhone,
+    performerRole,
+    timestamp: new Date().toISOString()
+  });
 };
 
-// Remove a specific device
-const removeDevice = async (userId, deviceId) => {
-  const { error } = await supabase
-    .from('push_subscriptions')
-    .delete()
-    .eq('id', deviceId)
-    .eq('user_id', userId);
+// Send transaction notification
+const notifyNewTransaction = async (performerRole, performerId, customerName, emptyCylinder, filledCylinder) => {
+  const title = 'Anam Store: New Transaction';
+  const dateTime = getFormattedDateTime();
+  let body = `Customer: ${customerName}\n📅 ${dateTime}\n👤 ${performerRole === 'admin' ? 'Admin' : 'Operator'}`;
   
-  return !error;
+  if (emptyCylinder && emptyCylinder !== 'कोही छैन') {
+    body += `\n📥 Empty: ${translateCylinderForNotif(emptyCylinder)}`;
+  }
+  if (filledCylinder && filledCylinder !== 'कोही छैन') {
+    body += `\n📤 Filled: ${translateCylinderForNotif(filledCylinder)}`;
+  }
+  
+  console.log(`🔔 New Transaction Notification: ${customerName} by ${performerRole}`);
+  
+  await notifyOtherUsers(performerRole, performerId, title, body, {
+    type: 'transaction',
+    url: '/transactions',
+    customerName,
+    emptyCylinder: translateCylinderForNotif(emptyCylinder),
+    filledCylinder: translateCylinderForNotif(filledCylinder),
+    performerRole,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Send queue notification
+const notifyQueueUpdate = async (performerRole, performerId, customerName, emptyCylinder, queueId) => {
+  const title = 'Anam Store: Queue Updated';
+  const dateTime = getFormattedDateTime();
+  const body = `${customerName} added to queue\n📅 ${dateTime}\n🛢️ Empty: ${translateCylinderForNotif(emptyCylinder)}\n👤 ${performerRole === 'admin' ? 'Admin' : 'Operator'}`;
+  
+  console.log(`🔔 Queue Update Notification: ${customerName} by ${performerRole}`);
+  
+  await notifyOtherUsers(performerRole, performerId, title, body, {
+    type: 'queue',
+    url: '/queue',
+    customerName,
+    emptyCylinder: translateCylinderForNotif(emptyCylinder),
+    performerRole,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Send refill notification
+const notifyRefillCompleted = async (performerRole, performerId, refillDate) => {
+  const title = 'Anam Store: Refill Completed';
+  const dateTime = getFormattedDateTime();
+  const body = `Refill completed for ${refillDate}\n📅 ${dateTime}\n👤 ${performerRole === 'admin' ? 'Admin' : 'Operator'}`;
+  
+  console.log(`🔔 Refill Completed Notification by ${performerRole}`);
+  
+  await notifyOtherUsers(performerRole, performerId, title, body, {
+    type: 'refill',
+    url: '/refillhistory',
+    refillDate,
+    performerRole,
+    timestamp: new Date().toISOString()
+  });
 };
 
 module.exports = { 
   saveSubscription, 
-  notifyUser, 
-  notifyAllAdmins,
-  getUserDevices,
-  removeDevice
+  notifyUser,
+  notifyNewCustomer,
+  notifyNewTransaction,
+  notifyQueueUpdate,
+  notifyRefillCompleted
 };

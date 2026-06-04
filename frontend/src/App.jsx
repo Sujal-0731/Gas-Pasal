@@ -135,6 +135,7 @@ function App() {
               showToast={showToast} 
               queueCustomer={queueCustomer}
               onClearQueueCustomer={handleClearQueueCustomer}
+              onNavigate={handleNavigate}
             />
           )}
           
@@ -143,7 +144,12 @@ function App() {
           )}
           
           {activeTab === 'customers' && (
-            <CustomerHistory showToast={showToast} user={user} />
+            <CustomerHistory 
+              showToast={showToast} 
+              user={user} 
+              onNavigate={handleNavigate}
+              onSelectCustomerFromQueue={handleQueueSelect}
+            />
           )}
           
           {activeTab === 'queue' && (

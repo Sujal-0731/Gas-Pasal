@@ -1,6 +1,18 @@
 // translations.js
 export const translations = {
   np: {
+    transactionComplete: 'कारोबार पूरा भयो',
+    transactionRecordedFor: 'को कारोबार रेकर्ड गरियो',
+    viewCustomerHistory: 'ग्राहक इतिहास हेर्नुहोस्',
+    // Add these at the end of np section, before the closing `},`
+    'changeCustomer': 'ग्राहक परिवर्तन गर्नुहोस्',
+    'done': 'समाप्त',
+    'transactionDetails': 'कारोबार विवरण',
+    'ok': 'ठीक छ',
+    'customer': 'ग्राहक',
+    'empty': 'खाली',
+    'filled': 'भरिएको',
+
     // Navigation
     dashboard: 'ड्यासबोर्ड',
     transactions: 'लेनदेन',
@@ -194,6 +206,20 @@ export const translations = {
     editCustomer: 'ग्राहक सम्पादन',
     customerUpdated: 'ग्राहक विवरण अपडेट गरियो',
     
+    // Customer History New Features
+    recentCustomers: 'हालैका ग्राहकहरू',
+    recentActivity: 'हालैको गतिविधि',
+    transactionHistory: 'कारोबार इतिहास',
+    confirmDeleteCustomer: 'के तपाईं यो ग्राहक हटाउन चाहनुहुन्छ?',
+    deleteCustomer: 'ग्राहक हटाउनुहोस्',
+    customerDeleted: 'ग्राहक हटाइयो',
+    quickTransaction: 'द्रुत कारोबार',
+    selectedForTransaction: 'कारोबारको लागि चयन गरियो',
+    processFromQueue: 'क्यूबाट कारोबार गर्नुहोस्',
+    inQueue: 'क्यूमा छ',
+    queueDetails: 'क्यू विवरण',
+    queuedAt: 'क्यूमा थपिएको मिति',
+    
     // Dealer Refill
     dealerRefillTitle: 'डिलर रिफिल',
     refillDetails: 'विवरण भर्नुहोस्',
@@ -296,6 +322,17 @@ export const translations = {
   },
   
   en: {
+    // Add these at the end of en section, before the closing `},`
+    'changeCustomer': 'Change Customer',
+    'done': 'Done',
+    'transactionDetails': 'Transaction Details',
+    'ok': 'OK',
+    'customer': 'Customer',
+    'empty': 'Empty',
+    'filled': 'Filled',
+    transactionComplete: 'Transaction Complete',
+    transactionRecordedFor: 'Transaction recorded for',
+    viewCustomerHistory: 'View Customer History',
     // Navigation
     dashboard: 'Dashboard',
     transactions: 'Transactions',
@@ -490,6 +527,20 @@ export const translations = {
     customerManagementDesc: 'Edit customer details',
     editCustomer: 'Edit Customer',
     customerUpdated: 'Customer details updated',
+    
+    // Customer History New Features
+    recentCustomers: 'Recent Customers',
+    recentActivity: 'Recent Activity',
+    transactionHistory: 'Transaction History',
+    confirmDeleteCustomer: 'Do you want to delete this customer?',
+    deleteCustomer: 'Delete Customer',
+    customerDeleted: 'Customer deleted',
+    quickTransaction: 'Quick Transaction',
+    selectedForTransaction: 'selected for transaction',
+    processFromQueue: 'Process from Queue',
+    inQueue: 'In Queue',
+    queueDetails: 'Queue Details',
+    queuedAt: 'Queued At',
     
     // Dealer Refill
     dealerRefillTitle: 'Dealer Refill',

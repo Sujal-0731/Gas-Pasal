@@ -14,6 +14,8 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 import { getCylinderOptions, translateCylinder } from '../utils/cylinderTranslator';
+import useDebouncedSearch from '../hooks/useDebouncedSearch';
+import { searchCustomers } from '../services/customerService';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -33,15 +35,22 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [emptyCylinder, setEmptyCylinder] = useState(cylinderValues.lokpriya);
   const [notes, setNotes] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const modalSearchRef = useRef(null);
   const showToastRef = useRef(showToast);
+
+  // ✅ Use debounced search for customer search
+  const {
+    searchTerm,
+    setSearchTerm,
+    results: searchResults,
+    isSearching,
+    clearSearch
+  } = useDebouncedSearch(searchCustomers, { delay: 500, minChars: 2 });
 
   // Update showToast ref
   useEffect(() => {
@@ -50,7 +59,6 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
 
   useEffect(() => {
     loadQueue();
-    loadCustomers();
   }, []);
 
   const loadQueue = async () => {
@@ -70,20 +78,6 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
     setLoading(false);
   };
 
-  const loadCustomers = async () => {
-    try {
-      const res = await fetch(`${API_URL}/customers`, {
-        credentials: 'include'
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCustomers(data.data);
-      }
-    } catch (error) {
-      console.error('Error loading customers:', error);
-    }
-  };
-
   const addToQueue = async () => {
     if (!selectedCustomer) {
       if (showToastRef.current) showToastRef.current(t('selectCustomerFirst', language), 'error');
@@ -100,7 +94,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
         body: JSON.stringify({
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
-          emptyCylinder: emptyCylinder, // Already in Nepali
+          emptyCylinder: emptyCylinder,
           notes
         }),
         credentials: 'include'
@@ -113,6 +107,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
         setEmptyCylinder(cylinderValues.lokpriya);
         setNotes('');
         setSearchTerm('');
+        clearSearch();
         await loadQueue();
       } else {
         if (showToastRef.current) showToastRef.current(data.message, 'error');
@@ -163,11 +158,8 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
   const handleSelectCustomer = (customer) => {
     setSelectedCustomer(customer);
     setSearchTerm('');
+    clearSearch();
   };
-
-  const filteredCustomers = customers.filter(c =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const getWaitingTime = (queuedAt) => {
     const queued = new Date(queuedAt);
@@ -184,6 +176,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
     setShowAddModal(true);
     setSelectedCustomer(null);
     setSearchTerm('');
+    clearSearch();
     setTimeout(() => {
       if (modalSearchRef.current) {
         modalSearchRef.current.focus();
@@ -341,12 +334,17 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                 </div>
               </div>
 
-              {searchTerm.length > 0 && !selectedCustomer && (
+              {/* Search Results */}
+              {searchTerm.length >= 2 && !selectedCustomer && (
                 <div className="mb-5 max-h-60 overflow-y-auto border-2 border-gray-200 rounded-xl">
-                  {filteredCustomers.length === 0 ? (
+                  {isSearching ? (
+                    <div className="flex justify-center py-8">
+                      <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : searchResults.length === 0 ? (
                     <div className="text-center text-gray-500 py-6 text-base font-medium">{t('noCustomers', language)}</div>
                   ) : (
-                    filteredCustomers.map(customer => (
+                    searchResults.map(customer => (
                       <div
                         key={customer.id}
                         onClick={() => handleSelectCustomer(customer)}
@@ -368,6 +366,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                     onClick={() => {
                       setSelectedCustomer(null);
                       setSearchTerm('');
+                      clearSearch();
                     }}
                     className="mt-2 text-sm font-semibold text-red-500 hover:text-red-700"
                   >
@@ -434,6 +433,7 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                     setShowAddModal(false);
                     setSelectedCustomer(null);
                     setSearchTerm('');
+                    clearSearch();
                   }}
                   className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-4 rounded-xl font-bold text-lg transition"
                 >

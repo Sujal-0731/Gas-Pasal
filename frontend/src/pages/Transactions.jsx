@@ -13,6 +13,8 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 import { translateCylinder } from '../utils/cylinderTranslator';
+import useDebouncedSearch from '../hooks/useDebouncedSearch';
+import { searchCustomers } from '../services/customerService';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -41,8 +43,18 @@ function Transactions({ showToast }) {
   const [mobileLoading, setMobileLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
+  // ✅ Use debounced search for customer name
+  const {
+    searchTerm: debouncedSearchTerm,
+    setSearchTerm: setDebouncedSearchTerm,
+    isSearching: isSearchingCustomer
+  } = useDebouncedSearch(searchCustomers, { 
+    delay: 600, 
+    minChars: 2,
+    clearOnEmpty: false
+  });
+
   // Filter states
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCylinder, setSelectedCylinder] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -72,7 +84,7 @@ function Transactions({ showToast }) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Reset all data when filters change
+  // Reset all data when filters change (including debounced search term)
   useEffect(() => {
     // Reset desktop pagination
     setPagination(prev => ({ ...prev, currentPage: 1 }));
@@ -89,7 +101,7 @@ function Transactions({ showToast }) {
     } else {
       fetchDesktopTransactions(1);
     }
-  }, [searchTerm, selectedCylinder, dateFrom, dateTo]);
+  }, [debouncedSearchTerm, selectedCylinder, dateFrom, dateTo]);
 
   // ========== DESKTOP PAGINATION ==========
   const fetchDesktopTransactions = async (pageNum = 1) => {
@@ -101,7 +113,7 @@ function Transactions({ showToast }) {
         limit: pagination.itemsPerPage
       });
       
-      if (searchTerm) params.append('search', searchTerm);
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
       if (selectedCylinder !== 'all') params.append('cylinder', selectedCylinder);
       if (dateFrom) params.append('date_from', dateFrom);
       if (dateTo) params.append('date_to', dateTo);
@@ -150,7 +162,7 @@ function Transactions({ showToast }) {
         limit: 20
       });
       
-      if (searchTerm) params.append('search', searchTerm);
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
       if (selectedCylinder !== 'all') params.append('cylinder', selectedCylinder);
       if (dateFrom) params.append('date_from', dateFrom);
       if (dateTo) params.append('date_to', dateTo);
@@ -225,7 +237,7 @@ function Transactions({ showToast }) {
   };
 
   const handleReset = () => {
-    setSearchTerm('');
+    setDebouncedSearchTerm('');
     setSelectedCylinder('all');
     setDateFrom('');
     setDateTo('');
@@ -248,7 +260,7 @@ function Transactions({ showToast }) {
     const exportAll = async () => {
       try {
         const params = new URLSearchParams({ limit: 10000 });
-        if (searchTerm) params.append('search', searchTerm);
+        if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
         if (selectedCylinder !== 'all') params.append('cylinder', selectedCylinder);
         if (dateFrom) params.append('date_from', dateFrom);
         if (dateTo) params.append('date_to', dateTo);
@@ -348,13 +360,19 @@ function Transactions({ showToast }) {
                 <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={debouncedSearchTerm}
+                  onChange={(e) => setDebouncedSearchTerm(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder={t('searchByCustomer', language)}
                   className="w-full pl-11 pr-4 py-3 text-base border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition"
                 />
               </div>
+              {isSearchingCustomer && debouncedSearchTerm.length >= 2 && (
+                <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                  <Spinner className="w-3 h-3" />
+                  {t('searching', language)}...
+                </p>
+              )}
             </div>
             
             <button

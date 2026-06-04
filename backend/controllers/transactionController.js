@@ -2,7 +2,7 @@
 const stockService = require('../services/stockService');
 const transactionService = require('../services/transactionService');
 const logger = require('../utils/logger');
-const { notifyAllAdmins } = require('../services/pushService');
+const { notifyNewTransaction } = require('../services/pushService');
 
 const createTransaction = async (req, res) => {
   try {
@@ -84,9 +84,12 @@ const createTransaction = async (req, res) => {
     }
     
     logger.info(`Transaction recorded: ${transactionId} for ${customerName}`);
-    await notifyAllAdmins(
-      '💰 New Transaction',
-      `${req.user.username}: ${customerName} - ${filledCylinder || 'Return only'}`
+    await notifyNewTransaction(
+      req.user.role,      
+      req.user.id,      
+      customerName,      
+      emptyCylinder,     
+      filledCylinder      
     );
     res.json({ 
       success: true, 

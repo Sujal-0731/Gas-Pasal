@@ -2,7 +2,7 @@
 const customerService = require('../services/customerService');
 const transactionService = require('../services/transactionService');
 const logger = require('../utils/logger');
-const { notifyAllAdmins } = require('../services/pushService');
+const { notifyNewCustomer } = require('../services/pushService');
 
 const getAllCustomers = async (req, res) => {
   try {
@@ -30,10 +30,16 @@ const createCustomer = async (req, res) => {
     const { data, error } = await customerService.createCustomer({ name, phone, address, remarks });
     
     if (error) throw error;
-    await notifyAllAdmins(
-      '📋 New Customer Created',
-      `${req.user.username} created customer: ${name}`
+    
+    // ✅ FIXED: Call notifyNewCustomer with correct parameters
+    await notifyNewCustomer(
+      req.user.role,      // performer's role (admin or mom)
+      req.user.id,        // performer's ID
+      name,               // customer name
+      phone || null,      // customer phone
+      data[0]?.id         // customer ID
     );
+    
     res.json({ success: true, message: 'Customer added successfully', data });
   
   } catch (error) {

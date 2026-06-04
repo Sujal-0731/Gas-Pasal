@@ -25,7 +25,7 @@ export const apiRequest = async (endpoint, options = {}) => {
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers,
-    credentials: 'include', // ✅ Fixed: credentials at fetch options level, not in headers
+    credentials: 'include', 
   });
   
   const data = await response.json();
