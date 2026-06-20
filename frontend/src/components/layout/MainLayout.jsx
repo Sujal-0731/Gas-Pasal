@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-
+import {MobileNav} from './MobileNav';
 export function MainLayout({ children, activeTab, onTabChange, onLogout, user }) {
   const [isMobile, setIsMobile] = React.useState(false);
 
@@ -15,10 +15,10 @@ export function MainLayout({ children, activeTab, onTabChange, onLogout, user })
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
       <Header user={user} onLogout={onLogout} />
       
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar 
           activeTab={activeTab} 
           onTabChange={onTabChange} 
@@ -27,12 +27,16 @@ export function MainLayout({ children, activeTab, onTabChange, onLogout, user })
         />
         
         {/* Main content */}
-        <main className="flex-1 overflow-x-auto">
+        <main className="flex-1 overflow-y-auto">
           <div className={isMobile ? 'pt-2 pb-4' : 'p-4 md:p-6'}>
             {children}
           </div>
         </main>
       </div>
+            {isMobile && (
+        <MobileNav activeTab={activeTab} onTabChange={onTabChange} user={user} />
+      )}
     </div>
+
   );
 }

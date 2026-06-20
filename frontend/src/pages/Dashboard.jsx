@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback,useRef } from 'react';
 import { StockProgress } from '../components/dashboard/StockProgress';
 import { 
   IconDashboardHome,
@@ -22,9 +22,11 @@ export function Dashboard({ showToast, onNavigate }) {
   const { language } = useLanguage();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const hasFetched = useRef(false);
   // ✅ Wrap with useCallback to prevent recreation on every render
   const fetchDashboardData = useCallback(async () => {
+    if (hasFetched.current) return; 
+    hasFetched.current = true;
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/dashboard`, {
