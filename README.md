@@ -1,6 +1,6 @@
 # Anam Store -Gas Cylinder Management System
 ## Features
-- 🔐 PIN authentication (parent-friendly, localStorage remember)
+- 🔐 Admin Login ,Admin creates Users(Role based Access)
 - 👥 Customer registration & search
 - 💰 Cylinder exchange recording (Lokpriya, Sugam, Everest)
 - 📜 Customer transaction history
