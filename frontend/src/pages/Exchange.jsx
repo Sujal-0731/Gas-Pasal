@@ -261,6 +261,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer, onNavigate }
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
           emptyCylinder: emptyCylinder,
           filledCylinder: filledCylinder,

@@ -6,15 +6,16 @@ const { notifyNewTransaction } = require('../services/pushService');
 
 const createTransaction = async (req, res) => {
   try {
-    const { customerName, emptyCylinder, filledCylinder, remarks, queueId } = req.body;
+    const { customerId, customerName, emptyCylinder, filledCylinder, remarks, queueId } = req.body;
     
     console.log('=== TRANSACTION REQUEST ===');
+    console.log('customerId:', customerId);
+    console.log('customerName:', customerName);
     console.log('filledCylinder:', filledCylinder);
     console.log('emptyCylinder:', emptyCylinder);
     
     // 1. Find customer
-    const { data: customer, error: customerError } = await transactionService.getCustomerByName(customerName.trim());
-    
+    const { data: customer, error: customerError } = await transactionService.getCustomerById(customerId);
     if (customerError || !customer) {
       return res.status(404).json({ 
         success: false, 
@@ -57,7 +58,7 @@ const createTransaction = async (req, res) => {
     const { data, error } = await transactionService.createTransaction({
       transaction_id: transactionId,
       customer_id: customer.id,
-      customer_name: customerName.trim(),
+      customer_name: customer.name,
       empty_cylinder: emptyCylinder,
       filled_cylinder: filledCylinder,
       remarks: remarks || null,

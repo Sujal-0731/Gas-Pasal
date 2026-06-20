@@ -45,6 +45,17 @@ const getCustomerTransactions = async (customerId) => {
   
   return { data: data || [], error };
 };
+//Get cutomer by id
+
+const getCustomerById = async (customerId) => {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('id, customer_id, name, phone, address, remarks')
+    .eq('id', customerId)
+    .single();
+  console.log(data,error);
+  return { data, error };
+};
 
 // Get customer by name
 const getCustomerByName = async (name) => {
@@ -53,7 +64,7 @@ const getCustomerByName = async (name) => {
     .select('id, customer_id, name, phone, address, remarks')
     .ilike('name', name)
     .single();
-  
+  console.log(data,error);
   return { data, error };
 };
 
@@ -189,9 +200,10 @@ module.exports = {
   createTransaction,
   getCustomerTransactions,
   getCustomerByName,
+  getCustomerById,
   completeQueueItem,
   getQueueDate,
   formatTransactionsWithDates,
   getAllTransactions,
-  getAllTransactionsWithFilters  // ✅ Export the new function
+  getAllTransactionsWithFilters 
 };
