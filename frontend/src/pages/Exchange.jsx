@@ -416,7 +416,7 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer, onNavigate }
                 className={`mb-6 transition-all duration-300 ${customerError ? 'border-red-500' : ''} ${shakeCustomer ? 'animate-shake' : ''}`}
               >
                 <label className="block text-base font-semibold text-gray-800 mb-2">
-                  {t('searchCustomer', language)} <span className="text-red-500">*</span>
+                  {t('searchCustomer', language)} <span className="text-red-500"></span>
                 </label>
                 <div className="relative">
                   <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
