@@ -35,6 +35,7 @@ export const Button = ({
         ${sizes[size]} 
         ${fullWidth ? 'w-full' : ''}
         font-semibold transition-all duration-200
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
         disabled:opacity-50 disabled:cursor-not-allowed
         flex items-center justify-center gap-2
         ${className}

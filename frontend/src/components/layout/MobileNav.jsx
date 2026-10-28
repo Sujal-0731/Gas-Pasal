@@ -37,7 +37,7 @@ export function MobileNav({ activeTab, onTabChange, user }) {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center py-1 px-1 z-50 shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center py-1 px-1 z-30 shadow-lg md:hidden">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;

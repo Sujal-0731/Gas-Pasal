@@ -1,17 +1,24 @@
-export const Input = ({ 
-  label, 
-  type = 'text', 
-  value, 
-  onChange, 
-  placeholder, 
+export const Input = ({
+  label,
+  type = 'text',
+  value,
+  onChange,
+  placeholder,
   required = false,
   icon: Icon,
+  disabled = false,
+  error = '',
+  name,
+  id,
+  autoComplete,
+  min,
+  step,
   className = ''
 }) => {
   return (
     <div className="mb-5">
       {label && (
-        <label className="block text-base font-semibold text-gray-800 mb-2">
+        <label htmlFor={id} className="block text-sm font-semibold text-gray-700 mb-2">
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>
@@ -27,15 +34,30 @@ export const Input = ({
           value={value}
           onChange={onChange}
           placeholder={placeholder}
+          name={name}
+          id={id}
+          autoComplete={autoComplete}
+          min={min}
+          step={step}
+          disabled={disabled}
+          required={required}
+          aria-invalid={error ? true : undefined}
           className={`
-            w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl
-            focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none
-            transition-all font-medium
+            w-full px-4 py-3 text-base border-2 rounded-xl
+            outline-none transition-all font-medium
+            focus:border-blue-500 focus:ring-4 focus:ring-blue-100
+            disabled:opacity-50 disabled:cursor-not-allowed
+            ${error ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-white'}
             ${Icon ? 'pl-11' : ''}
             ${className}
           `}
         />
       </div>
+      {error && (
+        <p className="text-red-500 text-sm mt-1.5" role="alert">{error}</p>
+      )}
     </div>
   );
 };
+
+export default Input;

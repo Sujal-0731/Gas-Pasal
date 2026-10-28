@@ -47,6 +47,36 @@ const getDashboard = async (req, res) => {
             t.filled_cylinder !== 'कोही छैन';
     }).length || 0;
     
+    // Phase 6: outstanding balances from real payment data.
+    // Only transactions with a tracked total (total_amount NOT NULL) count;
+    // legacy rows have unknown payment state and are never counted as owed.
+    const tracked = (transactions || []).filter(
+      t => t.total_amount !== null && t.total_amount !== undefined
+    );
+    let outstandingBalance = 0;
+    let outstandingCount = 0;
+    
+    if (tracked.length > 0) {
+      const { data: pays, error: payError } = await supabase
+        .from('payments')
+        .select('transaction_id, amount')
+        .in('transaction_id', tracked.map(t => t.id));
+      if (payError) throw payError;
+      
+      const paidBy = {};
+      (pays || []).forEach(p => {
+        paidBy[p.transaction_id] = (paidBy[p.transaction_id] || 0) + p.amount;
+      });
+      
+      tracked.forEach(t => {
+        const balance = Math.max(t.total_amount - (paidBy[t.id] || 0), 0);
+        if (balance > 0) {
+          outstandingBalance += balance;
+          outstandingCount += 1;
+        }
+      });
+    }
+
     // Format recent transactions
     const recentTransactions = (transactions || []).slice(0, 30).map(t => {
       const transDate = new Date(t.created_at);
@@ -65,7 +95,9 @@ const getDashboard = async (req, res) => {
           activeQueue: activeQueue || 0,
           totalFilled,
           totalEmpty,
-          monthlySales
+          monthlySales,
+          outstandingBalance,
+          outstandingCount
         },
         stock,
         recentTransactions

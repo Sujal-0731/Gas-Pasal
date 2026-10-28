@@ -102,9 +102,43 @@ const getCustomerHistory = async (req, res) => {
   }
 };
 
+// Phase 6.1: DELETE /api/admin/customers/:id (admin-only route).
+// Customer with sales history or an active queue entry is refused — see
+// customerService.deleteCustomer for the cascade safety rule.
+const deleteCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await customerService.deleteCustomer(id);
+
+    if (result.error) throw result.error;
+    if (result.notFound) {
+      return res.status(404).json({ success: false, message: 'ग्राहक भेटिएन' });
+    }
+    if (result.blocked === 'history') {
+      return res.status(400).json({
+        success: false,
+        message: `यस ग्राहकको ${result.count} वटा कारोबार छ; आर्थिक रेकर्ड हटाउन मिल्दैन`
+      });
+    }
+    if (result.blocked === 'queue') {
+      return res.status(400).json({
+        success: false,
+        message: 'यो ग्राहक अहिले क्यूमा छ; पहिले क्यूबाट हटाउनुहोस्'
+      });
+    }
+
+    logger.info(`Customer deleted by ${req.user.username}: ${result.data.name} (${id})`);
+    return res.json({ success: true, message: 'ग्राहक हटाइयो' });
+  } catch (error) {
+    logger.error('Delete customer error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = { 
   getAllCustomers, 
   createCustomer, 
   updateCustomer, 
+  deleteCustomer,
   getCustomerHistory 
 };

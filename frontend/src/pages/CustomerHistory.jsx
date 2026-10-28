@@ -4,21 +4,24 @@ import {
   IconPhone, 
   IconCopy, 
   IconChevronLeft,
-  IconFilledCylinder,
-  IconEmptyCylinder,
   IconQueue,
   IconAlertCircle,
   IconUsers,
   IconEdit,
   IconRefresh,
   IconTransaction,
-  IconClock,
-  IconTrendingUp
+  IconClock
 } from '../components/icons';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 import { translateCylinder } from '../utils/cylinderTranslator';
 import EditCustomerModal from '../components/admin/EditCustomerModal';
+import { PageHeader } from '../components/layout/PageHeader';
+import { Button } from '../components/ui/Button';
+import { CustomerDetailsModal } from '../components/customer/CustomerDetailsModal';
+import { TransactionList } from '../components/transactions/TransactionList';
+import { TransactionDetailsModal } from '../components/transactions/TransactionDetailsModal';
+import { RecordPaymentModal } from '../components/transactions/RecordPaymentModal';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -33,6 +36,9 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
   const [customerToEdit, setCustomerToEdit] = useState(null);
   const [activeQueue, setActiveQueue] = useState([]);
   const [recentCustomers, setRecentCustomers] = useState([]);
+  const [detailsCustomer, setDetailsCustomer] = useState(null);
+  const [detailsTx, setDetailsTx] = useState(null);
+  const [payingTransaction, setPayingTransaction] = useState(null);
 
   const isAdmin = user?.role === 'admin';
 
@@ -159,6 +165,24 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
     setLoading(false);
   };
 
+  // From the details modal: jump into the existing full-history screen (which
+  // keeps the Call / New transaction / Edit actions). The modal hands over the
+  // history response it already fetched, so no duplicate request is made;
+  // falls back to the original viewHistory fetch if no data was passed.
+  const openFullHistory = (historyData) => {
+    const customer = detailsCustomer;
+    if (!customer) return;
+    setDetailsCustomer(null);
+    addToRecentCustomers(customer);
+    if (historyData) {
+      setSelectedCustomer(customer);
+      setHistory(historyData);
+      setLoading(false);
+    } else {
+      viewHistory(customer);
+    }
+  };
+
   const handleEditClick = () => {
     if (history?.customer) {
       setCustomerToEdit(history.customer);
@@ -202,9 +226,58 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
     return `${Math.floor(diffMins / 1440)} ${t('daysAgo', language)}`;
   };
 
+  // Refresh this customer's history after a payment is recorded so balance/
+  // status update, and keep the open details modal in sync with the fresh row
+  // (its installment list refetches because total_paid changed).
+  const refreshAfterPayment = async () => {
+    if (!selectedCustomer) return;
+    try {
+      const response = await fetch(`${API_URL}/customers/${encodeURIComponent(selectedCustomer.name)}/history`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.success) {
+        const transactions = (data.transactions || []).map(tx => ({
+          ...tx,
+          customer_name: tx.customer_name || selectedCustomer.name
+        }));
+        setHistory({ ...data, transactions });
+        if (detailsTx) {
+          const updated = transactions.find(tx => tx.id === detailsTx.id);
+          if (updated) setDetailsTx(updated);
+        }
+      }
+    } catch {
+      if (showToast) showToast(t('networkError', language), 'error');
+    }
+  };
+
+  // Row-level action rendered OUTSIDE the row's main click target, so
+  // Record Payment can never also open the details view.
+  const renderRowActions = (transaction) => {
+    const actionable = transaction.payment_status === 'incomplete' || transaction.payment_status === 'partial';
+    if (!actionable) return null;
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setPayingTransaction(transaction)}
+      >
+        {t('recordPayment', language)}
+      </Button>
+    );
+  };
+
   if (selectedCustomer) {
     const queueInfo = getCustomerQueueInfo(selectedCustomer.id);
-    
+
+    // Enrich history rows with the customer's name so the shared compact row
+    // can show it (the history endpoint returns rows without a joined name).
+    const listTransactions = (history?.transactions || []).map(tx => ({
+      ...tx,
+      customer_name: tx.customer_name || selectedCustomer.name
+    }));
+
     return (
       <div className="space-y-5 pb-24">
         <button
@@ -216,15 +289,15 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
         </button>
 
         {/* Customer Details Card */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-5">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex justify-between items-center flex-wrap gap-3">
-              <h3 className="text-white font-bold text-xl">{t('customerDetails', language)}</h3>
-              <div className="flex gap-2">
+              <h3 className="text-base font-semibold text-gray-900">{t('customerDetails', language)}</h3>
+              <div className="flex gap-2 flex-wrap">
                 {history?.customer?.phone && (
                   <button
                     onClick={() => makePhoneCall(history.customer.phone)}
-                    className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors flex items-center gap-2"
+                    className="border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
                     title={t('call', language)}
                   >
                     <IconPhone className="w-4 h-4" />
@@ -233,7 +306,7 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
                 )}
                 <button
                   onClick={() => handleNewTransaction(selectedCustomer)}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors flex items-center gap-2"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
                   title={t('newTransaction', language)}
                 >
                   <IconTransaction className="w-4 h-4" />
@@ -242,7 +315,7 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
                 {isAdmin && (
                   <button
                     onClick={handleEditClick}
-                    className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors flex items-center gap-2"
+                    className="border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
                   >
                     <IconEdit className="w-4 h-4" />
                     <span className="hidden sm:inline">{t('edit', language)}</span>
@@ -293,11 +366,11 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
 
         {/* Queue Details Panel */}
         {queueInfo && (
-          <div className="bg-purple-50 rounded-2xl border border-purple-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-700 to-purple-500 px-6 py-4">
+          <div className="bg-purple-50 rounded-xl border border-purple-200 overflow-hidden">
+            <div className="bg-purple-100 px-6 py-4 border-b border-purple-200">
               <div className="flex items-center gap-2">
-                <IconQueue className="w-5 h-5 text-white" />
-                <h3 className="text-white font-bold text-lg">{t('queueDetails', language)}</h3>
+                <IconQueue className="w-5 h-5 text-purple-600" />
+                <h3 className="text-base font-semibold text-purple-800">{t('queueDetails', language)}</h3>
               </div>
             </div>
             <div className="p-5 space-y-4">
@@ -334,7 +407,7 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
         )}
 
         {/* Total Exchanges */}
-        <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white text-center py-4 rounded-xl font-bold text-xl">
+        <div className="bg-gray-50 border border-gray-200 text-gray-700 text-center py-4 rounded-xl font-semibold text-lg">
           {t('totalTransactions', language)}: {history?.totalExchanges || 0}
         </div>
 
@@ -346,49 +419,12 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
           </div>
         ) : (
           <div className="space-y-4">
-            <h3 className="font-bold text-lg text-gray-800 px-2">{t('transactionHistory', language)}</h3>
-            {history?.transactions?.map((transaction, idx) => (
-              <div key={idx} className="bg-white rounded-xl p-5 shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-gray-900 text-base">{transaction.date}</span>
-                    <span className="text-sm text-gray-500">| {transaction.time}</span>
-                  </div>
-                  {transaction.source === 'queue' && (
-                    <span className="bg-purple-100 text-purple-700 text-sm px-3 py-1.5 rounded-full flex items-center gap-1 font-semibold">
-                      <IconQueue className="w-4 h-4" />
-                      {t('fromQueue', language)}
-                    </span>
-                  )}
-                </div>
-                
-                <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <IconEmptyCylinder className="w-5 h-5 text-red-500" />
-                    <span className="text-base font-semibold text-gray-800">
-                      {transaction.empty_cylinder === 'कोही छैन' 
-                        ? t('newPurchase', language) 
-                        : translateCylinder(transaction.empty_cylinder, language)}
-                    </span>
-                  </div>
-                  <span className="text-gray-400 text-xl font-bold">→</span>
-                  <div className="flex items-center gap-2">
-                    <IconFilledCylinder className="w-5 h-5 text-green-600" />
-                    <span className="text-base font-bold text-green-700">
-                      {transaction.filled_cylinder === 'कोही छैन' 
-                        ? t('return', language) 
-                        : translateCylinder(transaction.filled_cylinder, language)}
-                    </span>
-                  </div>
-                </div>
-                
-                {transaction.remarks && (
-                  <div className="mt-3 text-sm text-gray-500 pt-2 border-t border-gray-100 font-medium">
-                    {transaction.remarks}
-                  </div>
-                )}
-              </div>
-            ))}
+            <h3 className="text-base font-semibold text-gray-900 px-2">{t('transactionHistory', language)}</h3>
+            <TransactionList
+              transactions={listTransactions}
+              onOpen={setDetailsTx}
+              renderActions={renderRowActions}
+            />
           </div>
         )}
 
@@ -404,34 +440,43 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
             showToast={showToast}
           />
         )}
+
+        {/* Phase 6.1: transaction details — opened by clicking any row */}
+        {detailsTx && (
+          <TransactionDetailsModal
+            transaction={detailsTx}
+            onClose={() => setDetailsTx(null)}
+            onRecordPayment={(tx) => setPayingTransaction(tx)}
+          />
+        )}
+
+        {/* Phase 6: Record Payment modal */}
+        {payingTransaction && (
+          <RecordPaymentModal
+            transaction={payingTransaction}
+            onClose={() => setPayingTransaction(null)}
+            onRecorded={refreshAfterPayment}
+            showToast={showToast}
+          />
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-5 pb-24">
-      <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
-        <div className="flex justify-between items-center flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <IconUsers className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white">{t('customerHistory', language)}</h1>
-              <p className="text-blue-100 text-base mt-1">{t('searchCustomer', language)}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => onNavigate?.('newcustomer')}
-            className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition flex items-center gap-2"
-          >
-            <IconUsers className="w-4 h-4" />
+      <PageHeader
+        title={t('customerHistory', language)}
+        subtitle={t('searchCustomer', language)}
+        icon={IconUsers}
+        action={
+          <Button onClick={() => onNavigate?.('newcustomer')} size="sm" icon={IconUsers}>
             {t('addNew', language)}
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
-      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6">
           <div className="relative">
             <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -440,30 +485,29 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t('searchNameOrPhone', language)}
-              className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all font-medium"
+              className="w-full pl-11 pr-4 py-2.5 text-base border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
               autoFocus
             />
           </div>
           <p className="text-xs text-gray-400 mt-2">
-            💡 {t('searchTip', language)}
+            {t('searchTip', language)}
           </p>
         </div>
       </div>
 
       {recentCustomers.length > 0 && searchTerm === '' && (
-        <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-5 py-3 bg-gray-50 border-b">
             <h3 className="text-sm font-semibold text-gray-600">{t('recentCustomers', language)}</h3>
           </div>
           <div className="divide-y">
             {recentCustomers.map(customer => {
               const queueInfo = getCustomerQueueInfo(customer.id);
-              return (
-                <div
-                  key={customer.id}
-                  onClick={() => viewHistory(customer)}
-                  className="px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition"
-                >
+              return (                  <div
+                    key={customer.id}
+                    onClick={() => setDetailsCustomer(customer)}
+                    className="px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition"
+                  >
                   <div>
                     <p className="font-medium text-gray-800">{customer.name}</p>
                     <p className="text-xs text-gray-400">{customer.phone || t('noPhone', language)}</p>
@@ -488,7 +532,7 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
           </div>
         </div>
       ) : filteredCustomers.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8 text-center">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
           <IconAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <p className="text-lg font-medium text-gray-500">{t('noCustomers', language)}</p>
         </div>
@@ -504,17 +548,17 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
                 <div className="flex items-center justify-between">
                   <div 
                     className="flex-1 cursor-pointer"
-                    onClick={() => viewHistory(customer)}
+                    onClick={() => setDetailsCustomer(customer)}
                   >
                     <p className="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition-colors">
                       {customer.name}
                     </p>
                     <p className="text-sm text-gray-500 mt-0.5">
-                      {customer.phone ? `📱 ${customer.phone}` : '📞 ' + t('noPhone', language)}
+                      {customer.phone || t('noPhone', language)}
                     </p>
                     {customer.address && (
                       <p className="text-xs text-gray-400 mt-0.5">
-                        📍 {customer.address}
+                        {customer.address}
                       </p>
                     )}
                     {queueInfo && (
@@ -562,6 +606,16 @@ function CustomerHistory({ showToast, user, onNavigate, onSelectCustomerFromQueu
         <IconRefresh className="w-5 h-5" />
         {t('refresh', language)}
       </button>
+
+      {/* Customer details modal — closing restores this exact list state */}
+      {detailsCustomer && (
+        <CustomerDetailsModal
+          customer={detailsCustomer}
+          onClose={() => setDetailsCustomer(null)}
+          showToast={showToast}
+          onOpenFullHistory={openFullHistory}
+        />
+      )}
     </div>
   );
 }

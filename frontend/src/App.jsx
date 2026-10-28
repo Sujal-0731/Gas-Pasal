@@ -22,6 +22,8 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  // Params handed to the Transactions page on navigation (Phase 6.1).
+  const [transactionsParams, setTransactionsParams] = useState(null);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
   const [queueCustomer, setQueueCustomer] = useState(null);
@@ -89,7 +91,10 @@ function App() {
     showToast('लगआउट भयो', 'success');
   };
 
-  const handleNavigate = (tab) => {
+  // Phase 6.1: navigation can carry params (e.g. the dashboard's Outstanding
+  // Balance card deep-links into the Transactions due-balance filter).
+  const handleNavigate = (tab, params) => {
+    setTransactionsParams(params || null);
     setActiveTab(tab);
   };
 
@@ -171,7 +176,11 @@ function App() {
             <StockSummary />
           )}
           {activeTab === 'transactions' && (
-            <Transactions showToast={showToast} />
+            <Transactions
+              showToast={showToast}
+              onNavigate={handleNavigate}
+              initialFilters={transactionsParams}
+            />
           )}
           {activeTab === 'admin' && (
             <AdminPanel showToast={showToast} user={user} />

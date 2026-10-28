@@ -43,8 +43,7 @@ const createCustomer = async (customerData) => {
     .single();
   
   return { data, error };
-};
-const updateCustomer = async (id, customerData) => {
+};const updateCustomer = async (id, customerData) => {
   const { data, error } = await supabase
     .from('customers')
     .update(customerData)
@@ -55,5 +54,44 @@ const updateCustomer = async (id, customerData) => {
   return { data, error };
 };
 
+// Phase 6.1: admin customer delete — SAFETY RULE.
+// transactions.customer_id is ON DELETE CASCADE (verified live), so deleting
+// a customer row would silently destroy their payment history. Refuse when
+// the customer has any transaction, or is waiting in the queue (queue rows
+// have no cascade and would be left dangling). Only history-free customers
+// (duplicates, mistakes, test rows) are actually removable.
+const deleteCustomer = async (id) => {
+  const { data: existing, error: findError } = await supabase
+    .from('customers')
+    .select('id, name')
+    .eq('id', id)
+    .maybeSingle();
 
-module.exports = { findCustomerByName, getAllCustomers, createCustomer,updateCustomer };
+  if (findError) return { error: findError };
+  if (!existing) return { notFound: true };
+
+  const { count: txCount, error: txError } = await supabase
+    .from('transactions')
+    .select('*', { count: 'exact', head: true })
+    .eq('customer_id', id);
+  if (txError) return { error: txError };
+  if (txCount > 0) return { blocked: 'history', count: txCount };
+
+  const { count: queueCount, error: queueError } = await supabase
+    .from('queue')
+    .select('*', { count: 'exact', head: true })
+    .eq('customer_id', id)
+    .eq('status', 'waiting');
+  if (queueError) return { error: queueError };
+  if (queueCount > 0) return { blocked: 'queue' };
+
+  const { error: deleteError } = await supabase
+    .from('customers')
+    .delete()
+    .eq('id', id);
+  if (deleteError) return { error: deleteError };
+
+  return { data: existing };
+};
+
+module.exports = { findCustomerByName, getAllCustomers, createCustomer, updateCustomer, deleteCustomer };

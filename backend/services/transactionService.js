@@ -1,6 +1,7 @@
 // backend/services/transactionService.js
 const supabase = require('../config/database');
 const logger = require('../utils/logger');
+const { derivePaymentStatus, computeBalanceDue } = require('../utils/paymentLogic');
 
 // Generate next transaction ID
 const generateTransactionId = async () => {
@@ -41,9 +42,14 @@ const getCustomerTransactions = async (customerId) => {
   
   if (error) {
     logger.error('Get customer transactions error:', error);
+    return { data: [], error };
   }
-  
-  return { data: data || [], error };
+
+  // Phase 6: attach derived payment summaries (paid / balance / status)
+  const { data: summarized, error: summaryError } = await attachPaymentSummaries(data || []);
+  if (summaryError) return { data: [], error: summaryError };
+
+  return { data: summarized, error: null };
 };
 //Get cutomer by id
 
@@ -133,7 +139,8 @@ const getAllTransactionsWithFilters = async (filters = {}) => {
     search, 
     cylinder, 
     date_from, 
-    date_to 
+    date_to,
+    outstanding
   } = filters;
   
   const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -161,6 +168,66 @@ const getAllTransactionsWithFilters = async (filters = {}) => {
     query = query.lte('created_at', `${date_to} 23:59:59`);
   }
   
+  // Phase 6.1: outstanding=1 → only transactions whose derived balance is
+  // still owed. supabase-js cannot filter on (total - paid), so the filtered
+  // set is fetched once (same approach + scale as the dashboard stat), the
+  // balance is derived in JS, and the requested page is sliced from that.
+  // Pagination/totalItems count only due rows; legacy rows (total_amount
+  // NULL) never qualify — their payment state is never counted as owed.
+  if (outstanding === '1' || outstanding === 'true') {
+    const { data: filteredRows, error: rowError } = await query;
+    if (rowError) {
+      logger.error('Get all transactions (outstanding) error:', rowError);
+      return { data: [], error: rowError, pagination: null };
+    }
+
+    const rows = filteredRows || [];
+    const trackedRows = rows.filter(
+      t => t.total_amount !== null && t.total_amount !== undefined
+    );
+
+    const paidBy = {};
+    if (trackedRows.length > 0) {
+      const { data: pays, error: payError } = await supabase
+        .from('payments')
+        .select('transaction_id, amount')
+        .in('transaction_id', trackedRows.map(t => t.id));
+      if (payError) {
+        logger.error('Get all transactions (outstanding payments) error:', payError);
+        return { data: [], error: payError, pagination: null };
+      }
+      (pays || []).forEach(p => {
+        paidBy[p.transaction_id] = (paidBy[p.transaction_id] || 0) + p.amount;
+      });
+    }
+
+    // rows are already ordered created_at DESC — the slice keeps that order
+    const dueRows = trackedRows.filter(
+      t => computeBalanceDue(t.total_amount, paidBy[t.id]) > 0
+    );
+    const total = dueRows.length;
+    const pageRows = dueRows.slice(offset, offset + parseInt(limit) - 1);
+
+    const formattedTransactions = formatTransactionsWithDates(pageRows);
+    const { data: summarized, error: summaryError } =
+      await attachPaymentSummaries(formattedTransactions);
+    if (summaryError) {
+      logger.error('Get all transactions (outstanding summary) error:', summaryError);
+      return { data: [], error: summaryError, pagination: null };
+    }
+
+    return {
+      data: summarized,
+      error: null,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalItems: total,
+        itemsPerPage: parseInt(limit)
+      }
+    };
+  }
+
   const { data, error, count } = await query
     .range(offset, offset + parseInt(limit) - 1);
   
@@ -171,9 +238,16 @@ const getAllTransactionsWithFilters = async (filters = {}) => {
   
   // Format dates for display
   const formattedTransactions = formatTransactionsWithDates(data || []);
+
+  // Phase 6: attach derived payment summaries
+  const { data: summarized, error: summaryError } = await attachPaymentSummaries(formattedTransactions);
+  if (summaryError) {
+    logger.error('Get all transactions summary error:', summaryError);
+    return { data: [], error: summaryError, pagination: null };
+  }
   
   return {
-    data: formattedTransactions,
+    data: summarized,
     error: null,
     pagination: {
       currentPage: parseInt(page),
@@ -195,9 +269,122 @@ const getAllTransactions = async (limit = 100) => {
   return { data: data || [], error };
 };
 
+// Phase 6: attach derived payment info to transaction rows.
+// Legacy rows (total_amount IS NULL) get null summaries — their payment state
+// is unknown and is never guessed as paid or unpaid.
+const attachPaymentSummaries = async (transactions) => {
+  const list = transactions || [];
+  const tracked = list.filter(t => t.total_amount !== null && t.total_amount !== undefined);
+
+  const paidBy = {};
+  const countBy = {};
+  const modesBy = {};
+
+  if (tracked.length > 0) {
+    const { data: pays, error } = await supabase
+      .from('payments')
+      .select('transaction_id, amount, payment_mode, paid_at')
+      .in('transaction_id', tracked.map(t => t.id))
+      .order('paid_at', { ascending: true });
+
+    if (error) {
+      logger.error('Attach payment summaries error:', error);
+      return { data: null, error };
+    }
+
+    (pays || []).forEach(p => {
+      paidBy[p.transaction_id] = (paidBy[p.transaction_id] || 0) + p.amount;
+      countBy[p.transaction_id] = (countBy[p.transaction_id] || 0) + 1;
+      if (!modesBy[p.transaction_id]) modesBy[p.transaction_id] = [];
+      if (!modesBy[p.transaction_id].includes(p.payment_mode)) {
+        modesBy[p.transaction_id].push(p.payment_mode);
+      }
+    });
+  }
+
+  const summarized = list.map(t => {
+    const isTracked = t.total_amount !== null && t.total_amount !== undefined;
+    if (!isTracked) {
+      return {
+        ...t,
+        total_paid: null,
+        balance_due: null,
+        payment_status: null,
+        payment_count: null,
+        payment_modes: null
+      };
+    }
+
+    const paid = paidBy[t.id] || 0;
+    return {
+      ...t,
+      total_paid: paid,
+      balance_due: computeBalanceDue(t.total_amount, paid),
+      payment_status: derivePaymentStatus(t.total_amount, paid),
+      payment_count: countBy[t.id] || 0,
+      payment_modes: modesBy[t.id] || []
+    };
+  });
+
+  return { data: summarized, error: null };
+};
+
+// Phase 6: create transaction + initial payment in ONE database transaction
+// (create_transaction_with_payment RPC — see migrations/phase6_payments.sql).
+// Any validation failure rolls back both rows: no orphan payment, and no sale
+// recorded with a payment that was not saved.
+const createTransactionWithPayment = async (fields) => {
+  const { data, error } = await supabase.rpc('create_transaction_with_payment', {
+    p_transaction_id: fields.transaction_id,
+    p_customer_id: fields.customer_id,
+    p_customer_name: fields.customer_name,
+    p_empty_cylinder: fields.empty_cylinder,
+    p_filled_cylinder: fields.filled_cylinder,
+    p_remarks: fields.remarks || null,
+    p_source: fields.source,
+    p_queue_date: fields.queue_date || null,
+    p_total_amount: fields.total_amount,
+    p_paid_amount: fields.paid_amount,
+    p_payment_mode: fields.payment_mode || null,
+    p_payment_note: fields.payment_note || null
+  });
+
+  if (error) logger.error('Create transaction with payment error:', error);
+  return { data, error };
+};
+
+// Phase 6: later installment. Atomic and row-locked inside record_payment()
+// (FOR UPDATE + re-summed balance), so concurrent calls cannot overpay.
+const recordPayment = async ({ transactionId, amount, mode, note }) => {
+  const { data, error } = await supabase.rpc('record_payment', {
+    p_transaction_id: transactionId,
+    p_amount: amount,
+    p_mode: mode,
+    p_note: note || null
+  });
+
+  if (error) logger.error('Record payment error:', error);
+  return { data, error };
+};
+
+const getTransactionPayments = async (transactionId) => {
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*')
+    .eq('transaction_id', transactionId)
+    .order('paid_at', { ascending: true });
+
+  if (error) logger.error('Get transaction payments error:', error);
+  return { data: data || [], error };
+};
+
 module.exports = {
   generateTransactionId,
   createTransaction,
+  createTransactionWithPayment,
+  recordPayment,
+  getTransactionPayments,
+  attachPaymentSummaries,
   getCustomerTransactions,
   getCustomerByName,
   getCustomerById,

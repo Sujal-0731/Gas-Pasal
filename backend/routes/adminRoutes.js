@@ -12,8 +12,9 @@ const {
   getUserStats,
 } = require('../controllers/adminController');
 
-const { updateCustomer } = require('../controllers/customerController');
+const { updateCustomer, deleteCustomer } = require('../controllers/customerController');
 const { updateStock } = require('../controllers/stockController');
+const { validateUuidParam } = require('../middleware/validate');
 
 // All admin routes require authentication and admin role
 router.use(authenticate);
@@ -28,5 +29,7 @@ router.put('/users/:id', updateUser);
 router.post('/users/:id/reset-password', resetPassword);
 router.delete('/users/:id', deleteUser);
 router.put('/customers/:id', updateCustomer);
+// Phase 6.1: admin customer delete (blocked when the customer has history)
+router.delete('/customers/:id', validateUuidParam('id'), deleteCustomer);
 router.put('/stock/:type', updateStock);
 module.exports = router;

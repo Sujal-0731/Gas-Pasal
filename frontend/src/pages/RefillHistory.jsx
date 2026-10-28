@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   IconSearch, 
   IconRefresh, 
   IconCalendar, 
-  IconTrendingUp,
+  IconTrendingUp, 
   IconLokpriya,
   IconSugam,
   IconEverest,
@@ -14,6 +14,8 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 import { translateCylinder } from '../utils/cylinderTranslator';
+import { PageHeader } from '../components/layout/PageHeader';
+import { Button } from '../components/ui/Button';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -69,9 +71,6 @@ function RefillHistory() {
   const totalExchangeTakeEverest = refills.reduce((sum, r) => sum + (r.exchange_take_everest || 0), 0);
   const totalExchangeGiveOther = refills.reduce((sum, r) => sum + (r.exchange_give_other || 0), 0);
   const totalExchangeTakeOther = refills.reduce((sum, r) => sum + (r.exchange_take_other || 0), 0);
-
-  const totalFilled = totalLokpriyaFilled + totalSugamFilled + totalEverestFilled + totalOtherFilled;
-  const totalEmpty = totalLokpriyaEmpty + totalSugamEmpty + totalEverestEmpty + totalOtherEmpty;
 
   // Helper function to render refill details based on mode
   const renderRefillDetails = (refill) => {
@@ -261,31 +260,31 @@ function RefillHistory() {
 
   return (
     <div className="space-y-5 pb-24">
-      {/* Page Header - Consistent Blue Gradient */}
-      <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-            <IconExchange className="w-7 h-7 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white">{t('refillHistory', language)}</h1>
-            <p className="text-blue-100 text-base mt-1">{t('refillHistoryDesc', language)}</p>
-          </div>
-        </div>
-      </div>
+      {/* Page Header */}
+      <PageHeader
+        title={t('refillHistory', language)}
+        subtitle={t('refillHistoryDesc', language)}
+        icon={IconExchange}
+        action={
+          <Button onClick={loadRefillHistory} size="sm" icon={IconRefresh} loading={loading}>
+            {t('refresh', language)}
+          </Button>
+        }
+      />
 
       {/* Search Section */}
-      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
-        <div className="p-6">
-          <label className="block text-base font-semibold text-gray-800 mb-2">{t('search', language)}</label>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-5">
+          <label htmlFor="rh-search" className="block text-sm font-semibold text-gray-700 mb-2">{t('search', language)}</label>
           <div className="relative">
             <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
+              id="rh-search"
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t('searchPlaceholder', language)}
-              className="w-full pl-11 pr-4 py-3 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-semibold shadow-sm"
+              className="w-full pl-11 pr-4 py-2.5 text-base border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
             />
           </div>
         </div>
@@ -293,10 +292,10 @@ function RefillHistory() {
 
       {/* Summary Statistics - Updated with Other cylinder */}
       {refills.length > 0 && (
-        <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl p-5 border border-indigo-200">
+        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-200">
           <div className="flex items-center gap-2 mb-4">
-            <IconTrendingUp className="w-6 h-6 text-indigo-600" />
-            <h3 className="text-lg font-bold text-indigo-900">{t('totalRefillSummary', language)}</h3>
+            <IconTrendingUp className="w-5 h-5 text-blue-600" />
+            <h3 className="text-base font-semibold text-gray-900">{t('totalRefillSummary', language)}</h3>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -414,25 +413,6 @@ function RefillHistory() {
         </div>
       )}
 
-      {/* Refresh Button */}
-      <button
-        onClick={loadRefillHistory}
-        disabled={loading}
-        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
-      >
-        {loading ? (
-          <>
-            <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-            {t('loading', language)}...
-          </>
-        ) : (
-          <>
-            <IconRefresh className="w-5 h-5" />
-            {t('refresh', language)}
-          </>
-        )}
-      </button>
-
       {/* Refill List */}
       {loading && refills.length === 0 ? (
         <div className="flex justify-center py-12">
@@ -442,7 +422,7 @@ function RefillHistory() {
           </div>
         </div>
       ) : filteredRefills.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8 text-center">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
           <IconCalendar className="w-16 h-16 text-gray-400 mx-auto mb-4 opacity-50" />
           <p className="text-lg font-bold text-gray-500">{t('noRefillHistory', language)}</p>
           <p className="text-base text-gray-400 mt-1">{t('noRefillRecords', language)}</p>
@@ -453,7 +433,7 @@ function RefillHistory() {
             <div key={idx} className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
                 <IconCalendar className="w-5 h-5 text-blue-600" />
-                <span className="font-bold text-xl text-gray-900">{r.refill_date}</span>
+                <span className="font-semibold text-base text-gray-900">{r.refill_date}</span>
                 {r.mode === 'exchange' && (
                   <span className="ml-auto text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-semibold flex items-center gap-1">
                     <IconExchange className="w-3 h-3" />
@@ -467,7 +447,7 @@ function RefillHistory() {
               {r.notes && (
                 <div className="mt-3 pt-2 border-t border-gray-200">
                   <div className="flex items-start gap-2">
-                    <span className="text-sm text-gray-600 font-medium">📝 {r.notes}</span>
+                    <span className="text-sm text-gray-600 font-medium">{r.notes}</span>
                   </div>
                 </div>
               )}

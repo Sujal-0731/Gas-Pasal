@@ -13,6 +13,7 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 import { translateCylinder } from '../utils/cylinderTranslator';
+import { derivePaymentStatus, formatRupees, statusLabelKey, statusChipClasses } from '../utils/paymentUtils';
 import TransactionSuccessModal from '../components/ui/TransactionSuccessModal';
 import useDebouncedSearch from '../hooks/useDebouncedSearch';
 import { searchCustomers } from '../services/customerService';
@@ -44,6 +45,14 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer, onNavigate }
   const [emptyCylinder, setEmptyCylinder] = useState(cylinderValues.lokpriya);
   const [filledCylinder, setFilledCylinder] = useState(cylinderValues.lokpriya);
   const [remarks, setRemarks] = useState('');
+  // Phase 6: payment fields. Paid starts empty (= Rs. 0, credit) so a full
+  // payment is never silently assumed — staff enter the actual amount.
+  const [totalAmount, setTotalAmount] = useState('');
+  const [paidAmount, setPaidAmount] = useState('');
+  const [paymentMode, setPaymentMode] = useState(null);
+  const [paymentError, setPaymentError] = useState('');
+  // Phase 6.1: default gas price from backend settings (admin-configurable).
+  const [defaultPrice, setDefaultPrice] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastTransaction, setLastTransaction] = useState(null);
@@ -51,19 +60,60 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer, onNavigate }
   
   const [customerError, setCustomerError] = useState('');
   const [cylinderError, setCylinderError] = useState('');
-  const [stockError, setStockError] = useState('');
-  const [shakeCustomer, setShakeCustomer] = useState(false);
+  const [stockError, setStockError] = useState('');  const [shakeCustomer, setShakeCustomer] = useState(false);
   const [shakeCylinder, setShakeCylinder] = useState(false);
-  
+  const [shakePayment, setShakePayment] = useState(false);
+
   const searchInputRef = useRef(null);
   const showToastRef = useRef(showToast);
   const customerSectionRef = useRef(null);
   const cylinderSectionRef = useRef(null);
+  const paymentSectionRef = useRef(null);
+
+  // Live payment preview (shown before submission)
+  const previewTotal = totalAmount === '' ? null : Number(totalAmount);
+  const previewPaid = paidAmount === '' ? 0 : Number(paidAmount);
+  const previewValid = previewTotal !== null && Number.isInteger(previewTotal) && previewTotal >= 0
+    && Number.isInteger(previewPaid) && previewPaid >= 0;
+  const previewStatus = previewValid ? derivePaymentStatus(previewTotal, previewPaid) : null;
+  const previewBalance = previewValid ? Math.max(previewTotal - previewPaid, 0) : null;
   const isScrollingRef = useRef(false);
 
   useEffect(() => {
     showToastRef.current = showToast;
   }, [showToast]);
+
+  // Phase 6.1: fetch the shop's default gas price once on mount. The loader
+  // lives behind refs (same pattern as CustomerDetailsModal) so the effect
+  // never calls a setState-bearing function directly. On arrival it prefills
+  // the Total field — only if nothing has been typed yet — so the default is
+  // the initial price of a new transaction but stays fully overridable, and
+  // it never touches a transaction once created.
+  const priceFetchStartedRef = useRef(false);
+  const loadDefaultPrice = useCallback(async () => {
+    if (priceFetchStartedRef.current) return;
+    priceFetchStartedRef.current = true;
+    try {
+      const res = await fetch(`${API_URL}/settings`, { credentials: 'include' });
+      const data = await res.json();
+      if (data.success && typeof data.settings?.defaultPrice === 'number') {
+        const price = data.settings.defaultPrice;
+        setDefaultPrice(price);
+        setTotalAmount(prev => (prev === '' ? String(price) : prev));
+      }
+    } catch {
+      // Non-critical: the field simply stays empty until staff enter a price.
+      priceFetchStartedRef.current = false;
+    }
+  }, []);
+
+  const loadDefaultPriceRef = useRef(null);
+  useEffect(() => {
+    loadDefaultPriceRef.current = loadDefaultPrice;
+  }, [loadDefaultPrice]);
+  useEffect(() => {
+    loadDefaultPriceRef.current?.();
+  }, [loadDefaultPrice]);
 
   // Clear customer error when customer is selected
   useEffect(() => {
@@ -227,6 +277,10 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer, onNavigate }
     setEmptyCylinder(cylinderValues.lokpriya);
     setFilledCylinder(cylinderValues.lokpriya);
     setRemarks('');
+    setTotalAmount(defaultPrice ? String(defaultPrice) : '');
+    setPaidAmount('');
+    setPaymentMode(null);
+    setPaymentError('');
     setCustomerError('');
     setCylinderError('');
     setStockError('');
@@ -253,6 +307,29 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer, onNavigate }
       return;
     }
 
+    // Phase 6: payment validation (mirrors backend rules; the server re-validates)
+    const totalRaw = totalAmount === '' ? null : Number(totalAmount);
+    const paidRaw = paidAmount === '' ? 0 : Number(paidAmount);
+    let payError = '';
+    if (totalRaw === null) {
+      payError = t('enterTotal', language);
+    } else if (!Number.isInteger(totalRaw) || totalRaw < 0) {
+      payError = t('invalidAmount', language);
+    } else if (!Number.isInteger(paidRaw)) {
+      payError = t('invalidAmount', language);
+    } else if (paidRaw < 0) {
+      payError = t('negativeAmount', language);
+    } else if (paidRaw > totalRaw) {
+      payError = t('paidExceedsTotal', language);
+    } else if (paidRaw > 0 && !paymentMode) {
+      payError = t('modeRequired', language);
+    }
+
+    if (payError) {
+      scrollToElement(paymentSectionRef, payError, setPaymentError, setShakePayment);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/transactions`, {
@@ -266,7 +343,11 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer, onNavigate }
           emptyCylinder: emptyCylinder,
           filledCylinder: filledCylinder,
           remarks,
-          queueId: queueCustomer?.id || null
+          queueId: queueCustomer?.id || null,
+          totalAmount: totalRaw,
+          paidAmount: paidRaw,
+          paymentMode: paidRaw > 0 ? paymentMode : null,
+          paymentNote: null
         }),
         credentials: 'include'
       });
@@ -299,6 +380,10 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer, onNavigate }
         setShowSuccessModal(true);
         showToastRef.current(t('transactionSuccess', language), 'success');
         setRemarks('');
+        setTotalAmount(defaultPrice ? String(defaultPrice) : '');
+        setPaidAmount('');
+        setPaymentMode(null);
+        setPaymentError('');
         
         if (queueCustomer && onClearQueueCustomer) {
           onClearQueueCustomer();
@@ -552,6 +637,105 @@ function Exchange({ showToast, queueCustomer, onClearQueueCustomer, onNavigate }
                   {cylinderError && (
                     <p className="text-red-500 text-sm mb-4 flex items-center gap-1">
                       <span className="text-red-500">⚠️</span> {cylinderError}
+                    </p>
+                  )}
+                </div>
+
+                {/* Phase 6: payment */}
+                <div
+                  ref={paymentSectionRef}
+                  className={`mb-6 p-4 rounded-xl border bg-white shadow-sm transition ${
+                    paymentError ? 'border-red-400' : 'border-gray-200'
+                  } ${shakePayment ? 'animate-shake' : ''}`}
+                >
+                  <p className="text-base font-bold text-gray-800 mb-4">{t('paymentSection', language)}</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-1.5">
+                        {t('totalAmount', language)} <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        inputMode="numeric"
+                        value={totalAmount}
+                        onChange={(e) => {
+                          setTotalAmount(e.target.value);
+                          setPaymentError('');
+                        }}
+                        placeholder="0"
+                        className="w-full px-3 py-2.5 text-lg font-bold border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none transition-colors"
+                      />
+                      <p className="text-xs text-gray-400 mt-1.5">
+                        {defaultPrice !== null && `${t('defaultPrice', language)}: ${formatRupees(defaultPrice, language)} · `}
+                        {t('defaultPriceOverride', language)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-1.5">
+                        {t('amountPaid', language)}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        inputMode="numeric"
+                        value={paidAmount}
+                        onChange={(e) => {
+                          setPaidAmount(e.target.value);
+                          setPaymentError('');
+                        }}
+                        placeholder="0"
+                        className="w-full px-3 py-2.5 text-lg font-bold border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-600 mb-1.5">
+                      {t('paymentMode', language)}
+                      {previewPaid > 0 && <span className="text-red-500"> *</span>}
+                    </label>
+                    <div className="flex gap-2">
+                      {['cash', 'online'].map(mode => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => {
+                            setPaymentMode(paymentMode === mode ? null : mode);
+                            setPaymentError('');
+                          }}
+                          className={`flex-1 py-2.5 rounded-lg text-sm font-bold border-2 transition ${
+                            paymentMode === mode
+                              ? 'bg-blue-600 border-blue-600 text-white'
+                              : 'bg-white border-gray-300 text-gray-600 hover:border-blue-400'
+                          }`}
+                        >
+                          {t(mode, language)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <span className="text-sm font-semibold text-gray-600">{t('balanceDue', language)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-gray-900">
+                        {previewBalance !== null ? formatRupees(previewBalance, language) : '—'}
+                      </span>
+                      {previewStatus && (
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${statusChipClasses(previewStatus)}`}>
+                          {t(statusLabelKey(previewStatus), language)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {paymentError && (
+                    <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                      <span>⚠️</span> {paymentError}
                     </p>
                   )}
                 </div>

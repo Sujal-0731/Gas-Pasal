@@ -1,5 +1,6 @@
 // backend/middleware/validate.js
 const { CYLINDER_TYPES } = require('../config/constants');
+const { parseRupees, isValidPaymentMode, PAYMENT_MODES } = require('../utils/paymentLogic');
 
 const validateCustomerInput = (req, res, next) => {
   const { name, phone } = req.body;
@@ -25,7 +26,7 @@ const validateCustomerInput = (req, res, next) => {
 };
 
 const validateTransactionInput = (req, res, next) => {
-  const { customerName, emptyCylinder, filledCylinder, remarks } = req.body;
+  const { customerName, emptyCylinder, filledCylinder, remarks, totalAmount, paidAmount, paymentMode, paymentNote } = req.body;
   
   if (!customerName || customerName.trim().length < 2) {
     return res.status(400).json({ success: false, message: 'ग्राहकको नाम आवश्यक छ' });
@@ -46,14 +47,80 @@ const validateTransactionInput = (req, res, next) => {
       success: false, 
       message: 'कृपया कम्तीमा एउटा सिलिन्डर चयन गर्नुहोस्' 
     });
-  }
-  
-  // Validate remarks length
+  }  // Validate remarks length
   if (remarks && remarks.length > 500) {
     return res.status(400).json({ success: false, message: 'कैफियत ५०० अक्षरभन्दा बढी हुन सक्दैन' });
   }
-  
+
+  // Phase 6: payment fields (whole rupees). Total is required for every new
+  // transaction; an absent paid amount is recorded as an explicit 0 (credit).
+  const totalParsed = parseRupees(totalAmount);
+  if (!totalParsed.ok) {
+    return res.status(400).json({ success: false, message: `कुल रकम: ${totalParsed.message}` });
+  }
+
+  const paidParsed = (paidAmount === null || paidAmount === undefined || paidAmount === '')
+    ? { ok: true, amount: 0 }
+    : parseRupees(paidAmount);
+  if (!paidParsed.ok) {
+    return res.status(400).json({ success: false, message: `तिरेको रकम: ${paidParsed.message}` });
+  }
+
+  if (paidParsed.amount > totalParsed.amount) {
+    return res.status(400).json({ success: false, message: 'तिरेको रकम कुल रकमभन्दा बढी हुन सक्दैन' });
+  }
+
+  if (paidParsed.amount > 0 && !isValidPaymentMode(paymentMode)) {
+    return res.status(400).json({ success: false, message: 'भुक्तानी मोड (नगद/अनलाइन) छान्नुहोस्' });
+  }
+  if (paidParsed.amount === 0 && paymentMode !== undefined && paymentMode !== null
+      && paymentMode !== '' && !isValidPaymentMode(paymentMode)) {
+    return res.status(400).json({ success: false, message: 'भुक्तानी मोड गलत छ' });
+  }
+
+  if (paymentNote && paymentNote.length > 200) {
+    return res.status(400).json({ success: false, message: 'भुक्तानी नोट २०० अक्षरभन्दा बढी हुन सक्दैन' });
+  }
+
   req.body.customerName = customerName.trim();
+  req.body.totalAmount = totalParsed.amount;
+  req.body.paidAmount = paidParsed.amount;
+  req.body.paymentMode = paymentMode || null;
+  req.body.paymentNote = paymentNote ? paymentNote.trim() : null;
+  next();
+};
+
+// Phase 6: POST /api/transactions/:id/payments (later installment)
+const validatePaymentInput = (req, res, next) => {
+  const { amount, mode, note } = req.body;
+
+  const parsed = parseRupees(amount);
+  if (!parsed.ok) {
+    return res.status(400).json({ success: false, message: `भुक्तानी रकम: ${parsed.message}` });
+  }
+  if (parsed.amount <= 0) {
+    return res.status(400).json({ success: false, message: 'भुक्तानी रकम शून्यभन्दा बढी हुनुपर्छ' });
+  }
+  if (!isValidPaymentMode(mode)) {
+    return res.status(400).json({ success: false, message: 'भुक्तानी मोड (नगद/अनलाइन) छान्नुहोस्' });
+  }
+  if (note !== undefined && note !== null && String(note).length > 200) {
+    return res.status(400).json({ success: false, message: 'भुक्तानी नोट २०० अक्षरभन्दा बढी हुन सक्दैन' });
+  }
+
+  req.body.amount = parsed.amount;
+  req.body.mode = mode;
+  req.body.note = note ? String(note).trim() : null;
+  next();
+};
+
+// Phase 6: guard the transaction id path parameter (uuid)
+const validateTransactionIdParam = (req, res, next) => {
+  const { id } = req.params;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!id || !uuidRegex.test(id)) {
+    return res.status(400).json({ success: false, message: 'लेनदेन आईडी गलत छ' });
+  }
   next();
 };
 
@@ -134,6 +201,31 @@ const validateDashboardRequest = (req, res, next) => {
   // No additional validation needed
   next();
 };
+// Phase 6.1: PUT /api/settings — default gas price must be a positive whole
+// number of rupees (same money convention as payments: integers only).
+const validateSettingsInput = (req, res, next) => {
+  const parsed = parseRupees(req.body.defaultPrice);
+  if (!parsed.ok) {
+    return res.status(400).json({ success: false, message: `डिफल्ट मूल्य: ${parsed.message}` });
+  }
+  if (parsed.amount <= 0) {
+    return res.status(400).json({ success: false, message: 'डिफल्ट मूल्य शून्यभन्दा बढी हुनुपर्छ' });
+  }
+  req.body.defaultPrice = parsed.amount;
+  next();
+};
+
+// Phase 6.1: guard the customer id path parameter (uuid) used by
+// DELETE /api/admin/customers/:id
+const validateUuidParam = (paramName) => (req, res, next) => {
+  const value = req.params[paramName];
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!value || !uuidRegex.test(value)) {
+    return res.status(400).json({ success: false, message: 'आईडी गलत छ' });
+  }
+  next();
+};
+
 const validateCustomerName = (req, res, next) => {
   const { name } = req.params;
   if (!name || name.trim().length < 2 || name.length > 100) {
@@ -146,10 +238,14 @@ const validateCustomerName = (req, res, next) => {
 };
 module.exports = { 
   validateCustomerInput, 
-  validateTransactionInput, 
+  validateTransactionInput,
+  validatePaymentInput,
+  validateTransactionIdParam,
   validateRefillInput,
   validateQueueInput,
   validateQueueDelete,
   validateDashboardRequest,
-  validateCustomerName
+  validateCustomerName,
+  validateSettingsInput,
+  validateUuidParam
 };

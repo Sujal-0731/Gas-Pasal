@@ -1,21 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  IconQueue, 
-  IconPlus, 
-  IconUsers, 
-  IconClock, 
-  IconTrash,
-  IconCheck,
+import { useState, useEffect, useRef } from 'react';
+import {
+  IconQueue,
+  IconPlus,
+  IconUsers,
+  IconClock,
   IconSearch,
   IconX,
-  IconFilledCylinder,
+  IconCheck,
   IconEmptyCylinder
 } from '../components/icons';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
-import { getCylinderOptions, translateCylinder } from '../utils/cylinderTranslator';
+import { getCylinderOptions } from '../utils/cylinderTranslator';
 import useDebouncedSearch from '../hooks/useDebouncedSearch';
 import { searchCustomers } from '../services/customerService';
+import { PageHeader } from '../components/layout/PageHeader';
+import { Button } from '../components/ui/Button';
+import { CustomerDetailsModal } from '../components/customer/CustomerDetailsModal';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -40,10 +41,15 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
   const [notes, setNotes] = useState('');
   const [processingId, setProcessingId] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [detailsCustomer, setDetailsCustomer] = useState(null);
+  const [pendingRemoval, setPendingRemoval] = useState(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+
   const modalSearchRef = useRef(null);
   const showToastRef = useRef(showToast);
-
-  // ✅ Use debounced search for customer search
+  const removalDialogRef = useRef(null);
+  const removalInProgressRef = useRef(false);
+  // Use debounced search for customer search
   const {
     searchTerm,
     setSearchTerm,
@@ -60,6 +66,26 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
   useEffect(() => {
     loadQueue();
   }, []);
+
+  useEffect(() => {
+    if (!pendingRemoval) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (
+        event.key === 'Escape' &&
+        !removalInProgressRef.current
+      ) {
+        setPendingRemoval(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    removalDialogRef.current?.focus();
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [pendingRemoval]);
 
   const loadQueue = async () => {
     setLoading(true);
@@ -119,30 +145,59 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
     setIsAdding(false);
   };
 
-  const removeFromQueue = async (queueId, customerName) => {
-    if (window.confirm(`${customerName} ${t('confirmRemove', language)}`)) {
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_URL}/queue/${queueId}`, {
-          method: 'DELETE',
-          credentials: 'include'
-        });
-        const data = await res.json();
-        if (data.success) {
-          if (showToastRef.current) showToastRef.current(`${customerName} ${t('removedFromQueue', language)}`, 'success');
-          setQueue(prevQueue => prevQueue.filter(q => q.id !== queueId));
-          await loadQueue();
-        } else {
-          if (showToastRef.current) showToastRef.current(data.message, 'error');
+  const removeFromQueue = (queueId, customerName) => {
+    setPendingRemoval({ queueId, customerName });
+  };
+// Run the existing removal request only after confirmation.
+  const confirmRemoveFromQueue = async () => {
+    if (!pendingRemoval || removalInProgressRef.current) return;
+
+    removalInProgressRef.current = true;
+    setIsRemoving(true);
+
+    const { queueId, customerName } = pendingRemoval;
+
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_URL}/queue/${queueId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        if (showToastRef.current) {
+          showToastRef.current(
+            `${customerName} ${t('removedFromQueue', language)}`,
+            'success'
+          );
         }
-      } catch (error) {
-        console.error('Remove from queue error:', error);
-        if (showToastRef.current) showToastRef.current(t('networkError', language), 'error');
+
+        setQueue(prevQueue =>
+          prevQueue.filter(q => q.id !== queueId)
+        );
+
+        setPendingRemoval(null);
+        await loadQueue();
+      } else {
+        if (showToastRef.current) {
+          showToastRef.current(data.message, 'error');
+        }
       }
+    } catch (error) {
+      console.error('Remove from queue error:', error);
+
+      if (showToastRef.current) {
+        showToastRef.current(t('networkError', language), 'error');
+      }
+    } finally {
       setLoading(false);
+      setIsRemoving(false);
+      removalInProgressRef.current = false;
     }
   };
-
   const handleSelectFromQueue = (item) => {
     setProcessingId(item.id);
     setQueue(prevQueue => prevQueue.filter(q => q.id !== item.id));
@@ -184,6 +239,12 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
     }, 100);
   };
 
+  // Open the customer-details modal without leaving the Queue page.
+  // The queue item itself stays untouched, so closing restores the exact screen state.
+  const openDetails = (item) => {
+    setDetailsCustomer({ id: item.customer_id, name: item.customer_name });
+  };
+
   // Helper to get display label for a cylinder value
   const getCylinderDisplayLabel = (value) => {
     const option = cylinderOptions.find(opt => opt.value === value);
@@ -192,143 +253,204 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
 
   return (
     <div className="space-y-5 pb-24">
-      {/* Page Header */}
-      <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-            <IconQueue className="w-7 h-7 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white">{t('queue', language)}</h1>
-            <p className="text-blue-100 text-base mt-1">{t('queueDesc', language)}</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title={t('queue', language)}
+        subtitle={t('queueDesc', language)}
+        icon={IconQueue}
+        action={
+          <Button onClick={openModal} icon={IconPlus} size="sm">
+            {t('addNew', language)}
+          </Button>
+        }
+      />
 
-      {/* Queue List Card */}
-      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-bold text-white">{t('waitingList', language)}</h2>
-              <p className="text-blue-100 text-sm mt-0.5">{t('customerWaitManagement', language)}</p>
-            </div>
-            <button
-              onClick={openModal}
-              className="px-5 py-2.5 bg-white/20 hover:bg-white/30 text-white rounded-xl font-semibold transition-all flex items-center gap-2"
-            >
-              <IconPlus className="w-5 h-5" />
-              {t('addNew', language)}
-            </button>
+      {/* Waiting list */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-gray-900">{t('waitingList', language)}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{t('customerWaitManagement', language)}</p>
           </div>
+          <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full whitespace-nowrap">
+            {t('totalInQueue', language)}: {queue.length}
+          </span>
         </div>
 
         <div className="p-5">
           {loading ? (
             <div className="flex justify-center py-12">
-              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : queue.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <IconQueue className="w-20 h-20 mx-auto mb-4 opacity-30" />
-              <p className="text-xl font-bold text-gray-500">{t('queueEmpty', language)}</p>
-              <p className="text-base mt-1">{t('noCustomersWaiting', language)}</p>
+            <div className="text-center py-12">
+              <IconQueue className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-base font-medium text-gray-500">{t('queueEmpty', language)}</p>
+              <p className="text-sm text-gray-400 mt-1">{t('noCustomersWaiting', language)}</p>
             </div>
           ) : (
-            <>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {queue.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`bg-gray-50 rounded-xl p-4 border-l-4 transition-all ${
-                      processingId === item.id 
-                        ? 'border-green-500 bg-green-50 opacity-50' 
-                        : 'border-gray-500 hover:shadow-xl hover:bg-gray-100 cursor-pointer'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <IconUsers className="w-5 h-5 text-gray-500" />
-                          <span className="font-bold text-lg text-gray-900">{item.customer_name}</span>
-                        </div>
-                        <div className="text-base text-gray-700 mb-2 flex items-center gap-2 font-semibold">
-                          <IconEmptyCylinder className="w-5 h-5 text-red-500" />
-                          {t('empty', language)}: {getCylinderDisplayLabel(item.empty_cylinder)}
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-gray-500">
-                          <IconClock className="w-4 h-4" />
-                          <span>{getWaitingTime(item.queued_at)}</span>
-                        </div>
-                        {item.notes && (
-                          <div className="text-sm text-gray-600 mt-2 p-2 bg-white rounded-lg">
-                            📝 {item.notes}
-                          </div>
-                        )}
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {queue.map((item) => (
+                <div
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openDetails(item)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openDetails(item);
+                    }
+                  }}
+                  className={`rounded-xl border p-4 transition ${
+                    processingId === item.id
+                      ? 'border-blue-200 bg-blue-50 opacity-60 cursor-default'
+                      : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50 cursor-pointer'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <IconUsers className="w-4 h-4 text-gray-400 shrink-0" />
+                        <span className="font-semibold text-gray-900 truncate">{item.customer_name}</span>
                       </div>
-                      <div className="flex flex-col gap-2 ml-4">
-                        <button
-                          onClick={() => handleSelectFromQueue(item)}
-                          disabled={processingId === item.id}
-                          className={`px-5 py-2 rounded-xl text-base font-bold transition ${
-                            processingId === item.id
-                              ? 'bg-gray-400 text-white cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                        >
-                          {processingId === item.id ? t('processing', language) : t('transaction', language)}
-                        </button>
-                        <button
-                          onClick={() => removeFromQueue(item.id, item.customer_name)}
-                          disabled={processingId === item.id}
-                          className="px-5 py-2 rounded-xl text-base font-semibold bg-red-500 text-white hover:bg-red-600 transition disabled:opacity-50"
-                        >
-                          {t('remove', language)}
-                        </button>
+                      <div className="mt-2 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                        <IconEmptyCylinder className="w-4 h-4 text-red-500 shrink-0" />
+                        <span>{t('empty', language)}: {getCylinderDisplayLabel(item.empty_cylinder)}</span>
                       </div>
+                      <div className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
+                        <IconClock className="w-4 h-4 shrink-0" />
+                        <span>{getWaitingTime(item.queued_at)}</span>
+                      </div>
+                      {item.notes && (
+                        <p className="mt-2 text-sm text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                          {item.notes}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex sm:flex-col gap-2 sm:ml-4 shrink-0">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectFromQueue(item);
+                        }}
+                        disabled={processingId === item.id}
+                      >
+                        {processingId === item.id ? t('processing', language) : t('transaction', language)}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFromQueue(item.id, item.customer_name);
+                        }}
+                        disabled={processingId === item.id}
+                      >
+                        {t('remove', language)}
+                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-              
-              <div className="mt-4 p-4 bg-gray-50 rounded-xl text-center border border-gray-200">
-                <span className="text-base font-bold text-gray-700">
-                  {t('totalInQueue', language)}: {queue.length}
-                </span>
-              </div>
-            </>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
 
+      {/* Remove from Queue confirmation dialog */}
+      {pendingRemoval && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 animate-fade-in"
+          onClick={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              !removalInProgressRef.current
+            ) {
+              setPendingRemoval(null);
+            }
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="remove-queue-title"
+            aria-describedby="remove-queue-description"
+            className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-5 shadow-xl sm:p-6"
+          >
+            <h3
+              id="remove-queue-title"
+              className="text-lg font-semibold text-gray-900"
+            >
+              {t('remove', language)}
+            </h3>
+
+            <p
+              id="remove-queue-description"
+              className="mt-3 text-sm leading-6 text-gray-600"
+            >
+              <span className="font-semibold text-gray-900">
+                {pendingRemoval.customerName}
+              </span>{' '}
+              {t('confirmRemove', language)}
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button
+                ref={removalDialogRef}
+                variant="secondary"
+                disabled={isRemoving}
+                onClick={() => setPendingRemoval(null)}
+              >
+                {t('cancel', language)}
+              </Button>
+
+              <Button
+                variant="danger"
+                disabled={isRemoving}
+                loading={isRemoving}
+                onClick={confirmRemoveFromQueue}
+              >
+                {isRemoving
+                  ? t('processing', language)
+                  : t('remove', language)}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add to Queue Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="sticky top-0 bg-gradient-to-r from-blue-700 to-blue-500 p-5">
-              <div className="flex justify-between items-center">
-                <h3 className="text-2xl font-bold text-white">{t('addToQueue', language)}</h3>
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                >
-                  <IconX className="w-6 h-6 text-white" />
-                </button>
-              </div>
+            <div className="sticky top-0 bg-white px-5 py-4 border-b border-gray-200 flex items-center justify-between z-10 rounded-t-2xl">
+              <h3 className="text-lg font-semibold text-gray-900">{t('addToQueue', language)}</h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                aria-label={t('close', language)}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <IconX className="w-5 h-5" />
+              </button>
             </div>
 
             <div className="p-5">
               <div className="mb-5">
-                <label className="block text-lg font-bold text-gray-800 mb-2">{t('searchCustomer', language)}</label>
+                <label htmlFor="queue-customer-search" className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('searchCustomer', language)}
+                </label>
                 <div className="relative">
-                  <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
+                    id="queue-customer-search"
                     ref={modalSearchRef}
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder={t('enterName', language)}
-                    className="w-full pl-11 pr-4 py-3 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-semibold"
+                    className="w-full pl-10 pr-4 py-2.5 text-base border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                     autoFocus
                   />
                 </div>
@@ -336,22 +458,22 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
 
               {/* Search Results */}
               {searchTerm.length >= 2 && !selectedCustomer && (
-                <div className="mb-5 max-h-60 overflow-y-auto border-2 border-gray-200 rounded-xl">
+                <div className="mb-5 max-h-60 overflow-y-auto border border-gray-200 rounded-lg divide-y">
                   {isSearching ? (
-                    <div className="flex justify-center py-8">
+                    <div className="flex justify-center py-6">
                       <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                   ) : searchResults.length === 0 ? (
-                    <div className="text-center text-gray-500 py-6 text-base font-medium">{t('noCustomers', language)}</div>
+                    <div className="text-center text-gray-500 py-5 text-sm font-medium">{t('noCustomers', language)}</div>
                   ) : (
                     searchResults.map(customer => (
                       <div
                         key={customer.id}
                         onClick={() => handleSelectCustomer(customer)}
-                        className="p-4 border-b cursor-pointer hover:bg-blue-50 transition"
+                        className="p-3 cursor-pointer hover:bg-blue-50 transition"
                       >
-                        <div className="font-bold text-lg text-gray-900">{customer.name}</div>
-                        <div className="text-base text-gray-600 mt-1">{customer.phone || t('noPhone', language)}</div>
+                        <div className="font-semibold text-gray-900">{customer.name}</div>
+                        <div className="text-sm text-gray-600 mt-0.5">{customer.phone || t('noPhone', language)}</div>
                       </div>
                     ))
                   )}
@@ -359,16 +481,16 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
               )}
 
               {selectedCustomer && (
-                <div className="mb-5 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <div className="text-sm font-bold text-blue-700 mb-2">{t('selectedCustomer', language)}</div>
-                  <div className="font-bold text-xl text-gray-900">{selectedCustomer.name}</div>
+                <div className="mb-5 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide">{t('selectedCustomer', language)}</div>
+                  <div className="font-semibold text-gray-900 mt-1">{selectedCustomer.name}</div>
                   <button
                     onClick={() => {
                       setSelectedCustomer(null);
                       setSearchTerm('');
                       clearSearch();
                     }}
-                    className="mt-2 text-sm font-semibold text-red-500 hover:text-red-700"
+                    className="mt-2 text-sm font-medium text-red-600 hover:text-red-700"
                   >
                     {t('change', language)}
                   </button>
@@ -378,19 +500,22 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
               {selectedCustomer && (
                 <>
                   <div className="mb-5">
-                    <label className="block text-lg font-bold text-gray-800 mb-2">{t('emptyCylinder', language)}</label>
+                    <label htmlFor="queue-empty-cylinder" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t('emptyCylinder', language)}
+                    </label>
                     <div className="relative">
                       <select
+                        id="queue-empty-cylinder"
                         value={emptyCylinder}
                         onChange={(e) => setEmptyCylinder(e.target.value)}
-                        className="w-full p-3 text-lg font-bold border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-colors appearance-none bg-white shadow-sm pr-12"
+                        className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-colors appearance-none bg-white pr-10"
                       >
                         {cylinderOptions.map(opt => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </div>
@@ -398,51 +523,58 @@ function Queue({ showToast, onSelectCustomerFromQueue }) {
                   </div>
 
                   <div className="mb-5">
-                    <label className="block text-lg font-bold text-gray-800 mb-2">{t('notes', language)} <span className="text-sm font-normal text-gray-500">({t('optional', language)})</span></label>
+                    <label htmlFor="queue-notes" className="block text-sm font-medium text-gray-700 mb-2">
+                      {t('notes', language)} <span className="text-xs font-normal text-gray-500">({t('optional', language)})</span>
+                    </label>
                     <textarea
+                      id="queue-notes"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows="2"
                       placeholder={t('notesPlaceholder', language)}
-                      className="w-full p-3 text-base border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-all resize-none font-semibold"
+                      className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none"
                     />
                   </div>
                 </>
               )}
 
               <div className="flex gap-3 mt-6">
-                <button
+                <Button
                   onClick={addToQueue}
                   disabled={!selectedCustomer || isAdding}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold text-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  loading={isAdding}
+                  icon={IconCheck}
+                  size="lg"
+                  fullWidth
                 >
-                  {isAdding ? (
-                    <>
-                      <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
-                      {t('adding', language)}...
-                    </>
-                  ) : (
-                    <>
-                      <IconCheck className="w-5 h-5" />
-                      {t('addCustomer', language)}
-                    </>
-                  )}
-                </button>
-                <button
+                  {isAdding ? `${t('adding', language)}...` : t('addCustomer', language)}
+                </Button>
+                <Button
                   onClick={() => {
                     setShowAddModal(false);
                     setSelectedCustomer(null);
                     setSearchTerm('');
                     clearSearch();
                   }}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-4 rounded-xl font-bold text-lg transition"
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
                 >
                   {t('cancel', language)}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Customer details modal — opens over the queue, closing restores this exact screen */}
+      {detailsCustomer && (
+        <CustomerDetailsModal
+          customer={detailsCustomer}
+          onClose={() => setDetailsCustomer(null)}
+          showToast={showToast}
+        />
       )}
     </div>
   );

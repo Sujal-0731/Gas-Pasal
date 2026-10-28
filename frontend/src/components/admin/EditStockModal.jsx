@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { IconX, IconCheck } from '../../components/icons';
-// ❌ Remove this line: import { getAuthHeader } from '../../utils/api';
+import { useState, useEffect } from 'react';
+import { IconX } from '../../components/icons';
 import { useLanguage } from '../../context/LanguageContext';
 import { t } from '../../utils/translations';
+import { Input } from '../ui/Input';
+import { Button } from '../ui/Button';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -14,12 +15,21 @@ function EditStockModal({ stockItem, cylinderType, onClose, onSuccess, showToast
   });
   const [loading, setLoading] = useState(false);
 
+  // Dialog semantics — Escape closes (same pattern as CustomerDetailsModal);
+  // the backdrop stays click-inert so a stray click can't discard input.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && !loading) onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose, loading]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     setLoading(true);
     try {
-      // ✅ FIX: Remove getAuthHeader, add credentials: 'include'
       const response = await fetch(`${API_URL}/admin/stock/${encodeURIComponent(cylinderType)}`, {
         method: 'PUT',
         headers: {
@@ -48,60 +58,61 @@ function EditStockModal({ stockItem, cylinderType, onClose, onSuccess, showToast
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
-      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
-        <div className="bg-gradient-to-r from-orange-700 to-orange-500 p-5 rounded-t-2xl">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold text-white">{cylinderType} - {t('editStock', language)}</h3>
-            <button onClick={onClose} className="text-white hover:bg-white/20 p-1 rounded">
-              <IconX className="w-5 h-5" />
-            </button>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${cylinderType} - ${t('editStock', language)}`}
+        className="bg-white rounded-2xl max-w-md w-full shadow-2xl"
+      >
+        {/* Header — same white pattern as RecordPaymentModal */}
+        <div className="p-5 border-b border-gray-200 flex justify-between items-center gap-3">
+          <div className="min-w-0">
+            <h3 className="text-xl font-bold text-gray-900 truncate">{cylinderType}</h3>
+            <p className="text-sm text-gray-500 mt-0.5">{t('editStock', language)}</p>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="text-gray-400 hover:text-gray-600 p-1 rounded shrink-0"
+            aria-label={t('cancel', language)}
+          >
+            <IconX className="w-5 h-5" />
+          </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('filled', language)}
-            </label>
-            <input
+        <form onSubmit={handleSubmit} className="p-5 space-y-1">
+          {/* Related counts side by side — easier to scan than stacked */}
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label={t('filled', language)}
               type="number"
+              id="edit-stock-filled"
+              min="0"
+              step="1"
+              required
               value={formData.filled_count}
               onChange={(e) => setFormData({ ...formData, filled_count: parseInt(e.target.value) || 0 })}
-              className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-orange-500 outline-none"
-              min="0"
-              required
             />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('empty', language)}
-            </label>
-            <input
+            <Input
+              label={t('empty', language)}
               type="number"
+              id="edit-stock-empty"
+              min="0"
+              step="1"
+              required
               value={formData.empty_count}
               onChange={(e) => setFormData({ ...formData, empty_count: parseInt(e.target.value) || 0 })}
-              className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-orange-500 outline-none"
-              min="0"
-              required
             />
           </div>
-          
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-100 hover:bg-gray-200 py-3 rounded-xl font-semibold transition"
-            >
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" fullWidth onClick={onClose} disabled={loading}>
               {t('cancel', language)}
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold transition disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? t('saving', language) : <><IconCheck className="w-4 h-4" /> {t('save', language)}</>}
-            </button>
+            </Button>
+            <Button type="submit" variant="primary" fullWidth loading={loading}>
+              {t('save', language)}
+            </Button>
           </div>
         </form>
       </div>

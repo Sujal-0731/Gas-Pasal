@@ -4,7 +4,6 @@ import {
   IconRefresh, 
   IconFilter,
   IconFilledCylinder,
-  IconEmptyCylinder,
   IconDownload,
   IconChevronLeft,
   IconChevronRight,
@@ -15,6 +14,12 @@ import { t } from '../utils/translations';
 import { translateCylinder } from '../utils/cylinderTranslator';
 import useDebouncedSearch from '../hooks/useDebouncedSearch';
 import { searchCustomers } from '../services/customerService';
+import { PageHeader } from '../components/layout/PageHeader';
+import { Button } from '../components/ui/Button';
+import { CustomerDetailsModal } from '../components/customer/CustomerDetailsModal';
+import { RecordPaymentModal } from '../components/transactions/RecordPaymentModal';
+import { TransactionList } from '../components/transactions/TransactionList';
+import { TransactionDetailsModal } from '../components/transactions/TransactionDetailsModal';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -23,7 +28,7 @@ const Spinner = ({ className = "w-5 h-5" }) => (
   <div className={`${className} border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin`} />
 );
 
-function Transactions({ showToast }) {
+function Transactions({ showToast, onNavigate, initialFilters }) {
   const { language } = useLanguage();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -43,6 +48,15 @@ function Transactions({ showToast }) {
   const [mobileLoading, setMobileLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
+  // Customer details modal (opens over the list, no navigation)
+  const [detailsCustomer, setDetailsCustomer] = useState(null);
+
+  // Phase 6: Record Payment modal (later installment)
+  const [payingTransaction, setPayingTransaction] = useState(null);
+
+  // Phase 6.1: shared transaction details modal (opened by clicking a row)
+  const [detailsTx, setDetailsTx] = useState(null);
+  
   // ✅ Use debounced search for customer name
   const {
     searchTerm: debouncedSearchTerm,
@@ -59,6 +73,9 @@ function Transactions({ showToast }) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  // Phase 6.1: due-balance filter — also deep-linked from the dashboard's
+  // Outstanding Balance card via initialFilters={{ outstanding: true }}.
+  const [outstandingOnly, setOutstandingOnly] = useState(initialFilters?.outstanding === true);
   
   // For infinite scroll
   const lastTransactionRef = useRef();
@@ -101,7 +118,7 @@ function Transactions({ showToast }) {
     } else {
       fetchDesktopTransactions(1);
     }
-  }, [debouncedSearchTerm, selectedCylinder, dateFrom, dateTo]);
+  }, [debouncedSearchTerm, selectedCylinder, dateFrom, dateTo, outstandingOnly]);
 
   // ========== DESKTOP PAGINATION ==========
   const fetchDesktopTransactions = async (pageNum = 1) => {
@@ -117,6 +134,7 @@ function Transactions({ showToast }) {
       if (selectedCylinder !== 'all') params.append('cylinder', selectedCylinder);
       if (dateFrom) params.append('date_from', dateFrom);
       if (dateTo) params.append('date_to', dateTo);
+      if (outstandingOnly) params.append('outstanding', '1');
       
       const response = await fetch(`${API_URL}/transactions/all?${params}`, {
         credentials: 'include'
@@ -131,12 +149,15 @@ function Transactions({ showToast }) {
           totalPages: data.pagination.totalPages,
           itemsPerPage: data.pagination.itemsPerPage
         });
+        return data.transactions || [];
       } else {
         showToast(data.message || t('error', language), 'error');
+        return [];
       }
     } catch (error) {
       console.error('Error fetching transactions:', error);
       showToast(t('networkError', language), 'error');
+      return [];
     } finally {
       setLoading(false);
     }
@@ -166,6 +187,7 @@ function Transactions({ showToast }) {
       if (selectedCylinder !== 'all') params.append('cylinder', selectedCylinder);
       if (dateFrom) params.append('date_from', dateFrom);
       if (dateTo) params.append('date_to', dateTo);
+      if (outstandingOnly) params.append('outstanding', '1');
       
       const response = await fetch(`${API_URL}/transactions/all?${params}`, {
         credentials: 'include'
@@ -183,12 +205,15 @@ function Transactions({ showToast }) {
         const hasMoreData = pageNum < data.pagination.totalPages;
         setHasMore(hasMoreData);
         hasMoreRef.current = hasMoreData;
+        return data.transactions || [];
       } else {
         showToast(data.message || t('error', language), 'error');
+        return [];
       }
     } catch (error) {
       console.error('Error fetching transactions:', error);
       showToast(t('networkError', language), 'error');
+      return [];
     } finally {
       setMobileLoading(false);
       isLoadingRef.current = false;
@@ -241,6 +266,44 @@ function Transactions({ showToast }) {
     setSelectedCylinder('all');
     setDateFrom('');
     setDateTo('');
+    setOutstandingOnly(false);
+  };
+
+  // Refresh the current view after a payment is recorded so balance/status update.
+  // Also updates the open details modal with the fresh row; its installment
+  // list refetches because total_paid changed.
+  const refreshAfterPayment = async () => {
+    let fresh;
+    if (isMobile) {
+      setMobileTransactions([]);
+      setMobilePage(1);
+      mobilePageRef.current = 1;
+      setHasMore(true);
+      hasMoreRef.current = true;
+      fresh = await fetchMobileTransactions(1, true);
+    } else {
+      fresh = await fetchDesktopTransactions(pagination.currentPage);
+    }
+    if (detailsTx && Array.isArray(fresh)) {
+      const updated = fresh.find(tx => tx.id === detailsTx.id);
+      if (updated) setDetailsTx(updated);
+    }
+  };
+
+  // Row-level action rendered OUTSIDE the row's main click target, so
+  // Record Payment can never also open the details view.
+  const renderRowActions = (transaction) => {
+    const actionable = transaction.payment_status === 'incomplete' || transaction.payment_status === 'partial';
+    if (!actionable) return null;
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setPayingTransaction(transaction)}
+      >
+        {t('recordPayment', language)}
+      </Button>
+    );
   };
 
   const formatDate = (dateString) => {
@@ -256,6 +319,12 @@ function Transactions({ showToast }) {
     });
   };
 
+  // Open customer details from a transaction row without leaving the page.
+  const openCustomerDetails = (transaction) => {
+    if (!transaction.customer_name) return;
+    setDetailsCustomer({ name: transaction.customer_name });
+  };
+
   const exportToCSV = () => {
     const exportAll = async () => {
       try {
@@ -264,6 +333,7 @@ function Transactions({ showToast }) {
         if (selectedCylinder !== 'all') params.append('cylinder', selectedCylinder);
         if (dateFrom) params.append('date_from', dateFrom);
         if (dateTo) params.append('date_to', dateTo);
+        if (outstandingOnly) params.append('outstanding', '1');
         
         const response = await fetch(`${API_URL}/transactions/all?${params}`, {
           credentials: 'include'
@@ -271,7 +341,8 @@ function Transactions({ showToast }) {
         const data = await response.json();
         
         if (data.success) {
-          const headers = ['Date', 'Time', 'Customer', 'Empty Cylinder', 'Filled Cylinder', 'Source', 'Remarks'];
+          const headers = ['Date', 'Time', 'Customer', 'Empty Cylinder', 'Filled Cylinder', 'Source', 'Remarks', 'Total (Rs)', 'Paid (Rs)', 'Balance (Rs)', 'Status', 'Payment Modes'];
+          const statusText = { incomplete: 'Incomplete', partial: 'Partial', complete: 'Complete' };
           const csvData = data.transactions.map(t => [
             formatDate(t.created_at),
             formatTime(t.created_at),
@@ -279,7 +350,12 @@ function Transactions({ showToast }) {
             t.empty_cylinder === 'कोही छैन' ? 'New Purchase' : translateCylinder(t.empty_cylinder, language),
             t.filled_cylinder === 'कोही छैन' ? 'Return Only' : translateCylinder(t.filled_cylinder, language),
             t.source === 'queue' ? 'Queue' : 'Direct',
-            t.remarks || ''
+            t.remarks || '',
+            t.total_amount ?? '',
+            t.total_paid ?? '',
+            t.balance_due ?? '',
+            t.payment_status ? statusText[t.payment_status] : '',
+            (t.payment_modes || []).join('+')
           ]);
           
           const csvContent = [headers, ...csvData].map(row => row.join(',')).join('\n');
@@ -329,30 +405,24 @@ function Transactions({ showToast }) {
   return (
     <div className="space-y-5 pb-24">
       {/* Page Header */}
-      <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg sticky top-0 z-10">
-        <div className="flex justify-between items-center flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <IconList className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white">{t('allTransactions', language)}</h1>
-              <p className="text-blue-100 text-base mt-1">{t('transactionsDesc', language)}</p>
-            </div>
-          </div>
-          <button
+      <PageHeader
+        title={t('allTransactions', language)}
+        subtitle={t('transactionsDesc', language)}
+        icon={IconList}
+        action={
+          <Button
             onClick={exportToCSV}
-            className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition flex items-center gap-2"
+            size="sm"
+            icon={IconDownload}
             disabled={(isMobile ? mobileTransactions.length : transactions.length) === 0}
           >
-            <IconDownload className="w-4 h-4" />
             {t('exportCSV', language)}
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
       {/* Search and Filter Bar */}
-      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden sticky top-24 z-10">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden sticky top-0 z-10">
         <div className="p-5">
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="flex-1 min-w-[200px]">
@@ -364,7 +434,7 @@ function Transactions({ showToast }) {
                   onChange={(e) => setDebouncedSearchTerm(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder={t('searchByCustomer', language)}
-                  className="w-full pl-11 pr-4 py-3 text-base border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition"
+                  className="w-full pl-11 pr-4 py-2.5 text-base border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                 />
               </div>
               {isSearchingCustomer && debouncedSearchTerm.length >= 2 && (
@@ -375,42 +445,44 @@ function Transactions({ showToast }) {
               )}
             </div>
             
-            <button
+            <Button
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-4 py-3 rounded-xl flex items-center gap-2 transition ${
-                showFilters ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
+              variant={showFilters ? 'primary' : 'secondary'}
+              icon={IconFilter}
             >
-              <IconFilter className="w-5 h-5" />
               {t('filters', language)}
-            </button>
+            </Button>
             
-            <button
-              onClick={handleSearch}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition"
-            >
+            <Button onClick={handleSearch} variant="primary">
               {t('search', language)}
-            </button>
+            </Button>
             
-            <button
-              onClick={handleReset}
-              className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition"
-            >
+            <Button onClick={handleReset} variant="secondary">
               {t('reset', language)}
-            </button>
+            </Button>
+
+            {/* Phase 6.1: due-balance filter — lists only transactions whose
+                balance is still owed (legacy rows never qualify). */}
+            <Button
+              onClick={() => setOutstandingOnly(prev => !prev)}
+              variant={outstandingOnly ? 'primary' : 'secondary'}
+            >
+              {t('outstandingBalance', language)}
+            </Button>
           </div>
 
           {/* Advanced Filters */}
           {showFilters && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="tx-cylinder" className="block text-sm font-medium text-gray-700 mb-2">
                   {t('cylinderType', language)} ({t('soldGas', language)})
                 </label>
                 <select
+                  id="tx-cylinder"
                   value={selectedCylinder}
                   onChange={(e) => setSelectedCylinder(e.target.value)}
-                  className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
                 >
                   {cylinderOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -419,26 +491,28 @@ function Transactions({ showToast }) {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="tx-date-from" className="block text-sm font-medium text-gray-700 mb-2">
                   {t('dateFrom', language)}
                 </label>
                 <input
+                  id="tx-date-from"
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="tx-date-to" className="block text-sm font-medium text-gray-700 mb-2">
                   {t('dateTo', language)}
                 </label>
                 <input
+                  id="tx-date-to"
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full p-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
                 />
               </div>
             </div>
@@ -462,75 +536,31 @@ function Transactions({ showToast }) {
       {/* ========== DESKTOP VIEW (Table + Pagination) ========== */}
       <div className="hidden md:block">
         {transactions.length === 0 && !loading ? (
-          <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8 text-center">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
             <IconFilledCylinder className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-lg font-medium text-gray-500">{t('noTransactions', language)}</p>
+            <p className="text-lg font-medium text-gray-500">
+              {outstandingOnly ? t('noOutstandingTx', language) : t('noTransactions', language)}
+            </p>
+            <div className="mt-4 flex justify-center gap-3">
+              {outstandingOnly ? (
+                <Button variant="secondary" size="sm" onClick={() => setOutstandingOnly(false)}>
+                  {t('reset', language)}
+                </Button>
+              ) : onNavigate ? (
+                <Button variant="secondary" size="sm" onClick={() => onNavigate('customers')}>
+                  {t('viewCustomerHistory', language)}
+                </Button>
+              ) : null}
+            </div>
           </div>
         ) : (
           <>
-            <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <div className="min-w-[800px]">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b-2">
-                      <tr>
-                        <th className="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">{t('date', language)}</th>
-                        <th className="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">{t('customer', language)}</th>
-                        <th className="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">{t('emptyCylinder', language)}</th>
-                        <th className="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">{t('filledCylinder', language)}</th>
-                        <th className="text-left p-4 font-semibold text-gray-700 whitespace-nowrap">{t('source', language)}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transactions.map((transaction, idx) => (
-                        <tr key={idx} className="border-b hover:bg-gray-50 transition">
-                          <td className="p-4 whitespace-nowrap">
-                            <div>{formatDate(transaction.created_at)}</div>
-                            <div className="text-xs text-gray-400">{formatTime(transaction.created_at)}</div>
-                          </td>
-                          <td className="p-4 font-medium text-gray-900 whitespace-nowrap">{transaction.customer_name}</td>
-                          <td className="p-4 whitespace-nowrap">
-                            {transaction.empty_cylinder === 'कोही छैन' ? (
-                              <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                                {t('newPurchase', language)}
-                              </span>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <IconEmptyCylinder className="w-4 h-4 text-red-500 flex-shrink-0" />
-                                <span>{translateCylinder(transaction.empty_cylinder, language)}</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-4 whitespace-nowrap">
-                            {transaction.filled_cylinder === 'कोही छैन' ? (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                                {t('returnOnly', language)}
-                              </span>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <IconFilledCylinder className="w-4 h-4 text-green-600 flex-shrink-0" />
-                                <span className="font-medium">{translateCylinder(transaction.filled_cylinder, language)}</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-4 whitespace-nowrap">
-                            {transaction.source === 'queue' ? (
-                              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                                {t('fromQueue', language)}
-                              </span>
-                            ) : (
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                                {t('direct', language)}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+            <TransactionList
+              transactions={transactions}
+              onOpen={setDetailsTx}
+              renderActions={renderRowActions}
+            />
+            
 
             {/* Desktop Pagination */}
             {pagination.totalPages > 1 && (
@@ -576,58 +606,32 @@ function Transactions({ showToast }) {
       {/* ========== MOBILE VIEW (Cards + Infinite Scroll) ========== */}
       <div className="md:hidden space-y-3">
         {mobileTransactions.length === 0 && !mobileLoading ? (
-          <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8 text-center">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
             <IconFilledCylinder className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-lg font-medium text-gray-500">{t('noTransactions', language)}</p>
+            <p className="text-lg font-medium text-gray-500">
+              {outstandingOnly ? t('noOutstandingTx', language) : t('noTransactions', language)}
+            </p>
+            <div className="mt-4 flex justify-center gap-3">
+              {outstandingOnly ? (
+                <Button variant="secondary" size="sm" onClick={() => setOutstandingOnly(false)}>
+                  {t('reset', language)}
+                </Button>
+              ) : onNavigate ? (
+                <Button variant="secondary" size="sm" onClick={() => onNavigate('customers')}>
+                  {t('viewCustomerHistory', language)}
+                </Button>
+              ) : null}
+            </div>
           </div>
         ) : (
           <>
-            {mobileTransactions.map((transaction, idx) => (
-              <div 
-                key={idx}
-                ref={idx === mobileTransactions.length - 1 ? lastTransactionRef : null}
-                className="bg-white rounded-xl p-4 shadow-sm border border-gray-200"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="font-bold text-gray-900">{transaction.customer_name}</p>
-                    <p className="text-xs text-gray-400">{formatDate(transaction.created_at)} at {formatTime(transaction.created_at)}</p>
-                  </div>
-                  {transaction.source === 'queue' && (
-                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
-                      {t('fromQueue', language)}
-                    </span>
-                  )}
-                </div>
-                <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-500">{t('emptyCylinder', language)}</p>
-                    {transaction.empty_cylinder === 'कोही छैन' ? (
-                      <span className="text-sm font-medium text-green-600">{t('newPurchase', language)}</span>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <IconEmptyCylinder className="w-3 h-3 text-red-500" />
-                        <span className="text-sm">{translateCylinder(transaction.empty_cylinder, language)}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 text-right">
-                    <p className="text-xs text-gray-500">{t('filledCylinder', language)}</p>
-                    {transaction.filled_cylinder === 'कोही छैन' ? (
-                      <span className="text-sm font-medium text-blue-600">{t('returnOnly', language)}</span>
-                    ) : (
-                      <div className="flex items-center gap-1 justify-end">
-                        <IconFilledCylinder className="w-3 h-3 text-green-600" />
-                        <span className="text-sm">{translateCylinder(transaction.filled_cylinder, language)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {transaction.remarks && (
-                  <p className="text-xs text-gray-400 mt-2 pt-1 border-t border-gray-100">{transaction.remarks}</p>
-                )}
-              </div>
-            ))}
+            <TransactionList
+              transactions={mobileTransactions}
+              onOpen={setDetailsTx}
+              renderActions={renderRowActions}
+            />
+            {/* Infinite-scroll sentinel observed by the IntersectionObserver */}
+            <div ref={lastTransactionRef} aria-hidden="true" />
 
             {/* Mobile Loading Indicator */}
             {mobileLoading && mobileTransactions.length > 0 && (
@@ -662,6 +666,39 @@ function Transactions({ showToast }) {
         )}
         {t('refresh', language)}
       </button>
+
+      {/* Customer details modal — opens over the list, closing restores this exact screen */}
+      {detailsCustomer && (
+        <CustomerDetailsModal
+          customer={detailsCustomer}
+          onClose={() => setDetailsCustomer(null)}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Phase 6.1: transaction details — opened by clicking any row */}
+      {detailsTx && (
+        <TransactionDetailsModal
+          transaction={detailsTx}
+          onClose={() => setDetailsTx(null)}
+          onRecordPayment={(tx) => setPayingTransaction(tx)}
+          onViewCustomer={(tx) => {
+            // close details first: customer modal opens as the top layer
+            setDetailsTx(null);
+            openCustomerDetails(tx);
+          }}
+        />
+      )}
+
+      {/* Phase 6: Record Payment modal */}
+      {payingTransaction && (
+        <RecordPaymentModal
+          transaction={payingTransaction}
+          onClose={() => setPayingTransaction(null)}
+          onRecorded={refreshAfterPayment}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 }

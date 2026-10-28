@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   IconDealer, 
   IconPlus, 
   IconRefresh,
-  IconAlertCircle,
   IconChevronLeft,
   IconCalendar,
   IconFilledCylinder,
@@ -11,13 +10,13 @@ import {
   IconLokpriya,
   IconSugam,
   IconEverest,
-  IconOther,
-  IconCheck,
-  IconX
+  IconOther
 } from '../components/icons';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../utils/translations';
 import { translateCylinder } from '../utils/cylinderTranslator';
+import { PageHeader } from '../components/layout/PageHeader';
+import { Button } from '../components/ui/Button';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -201,17 +200,10 @@ function DealerRefill({ showToast }) {
           <span>{t('newRefill', language)}</span>
         </button>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-700 to-blue-500 p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <IconDealer className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">{t('refillHistory', language)}</h2>
-                <p className="text-blue-100 text-base mt-1">{t('totalRefills', language)}: {refills.length}</p>
-              </div>
-            </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-200">
+            <h2 className="text-base font-semibold text-gray-900">{t('refillHistory', language)}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{t('totalRefills', language)}: {refills.length}</p>
           </div>
 
           <div className="p-5">
@@ -235,8 +227,8 @@ function DealerRefill({ showToast }) {
                 refills.map((r, idx) => (
                   <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                     <div className="flex items-center gap-2 text-gray-700 mb-3 pb-2 border-b border-gray-200">
-                      <IconCalendar className="w-5 h-5" />
-                      <span className="font-bold text-lg">{r.refill_date}</span>
+                      <IconCalendar className="w-4 h-4 text-blue-600" />
+                      <span className="font-semibold text-base">{r.refill_date}</span>
                       {r.mode === 'exchange' && (
                         <span className="ml-auto text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full">
                           {t('exchange', language)}
@@ -371,34 +363,22 @@ function DealerRefill({ showToast }) {
   return (
     <div className="space-y-5 pb-24">
       {/* Page Header */}
-      <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-6 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-            <IconDealer className="w-7 h-7 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white">{t('dealerRefill', language)}</h1>
-            <p className="text-blue-100 text-base mt-1">{t('refillDetails', language)}</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title={t('dealerRefill', language)}
+        subtitle={t('refillDetails', language)}
+        icon={IconDealer}
+        action={
+          <Button onClick={() => setShowHistory(true)} size="sm" icon={IconRefresh}>
+            {t('viewHistory', language)}
+          </Button>
+        }
+      />
 
       {/* Main Form Card */}
-      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
-          <div className="flex justify-between items-center flex-wrap gap-3">
-            <div>
-              <h2 className="text-xl font-bold text-white">{t('refillForm', language)}</h2>
-              <p className="text-blue-100 text-sm mt-0.5">{t('enterRefillDetails', language)}</p>
-            </div>
-            <button
-              onClick={() => setShowHistory(true)}
-              className="px-5 py-2.5 bg-white/20 hover:bg-white/30 text-white rounded-xl font-semibold transition-all flex items-center gap-2"
-            >
-              <IconRefresh className="w-5 h-5" />
-              {t('viewHistory', language)}
-            </button>
-          </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-base font-semibold text-gray-900">{t('refillForm', language)}</h2>
+          <p className="text-sm text-gray-500 mt-0.5">{t('enterRefillDetails', language)}</p>
         </div>
 
         <div className="p-6">
@@ -406,9 +386,9 @@ function DealerRefill({ showToast }) {
           <div className="grid grid-cols-2 gap-4 mb-6">
             <button
               onClick={() => setMode('normal')}
-              className={`py-4 rounded-xl font-bold text-lg transition-all ${
+              className={`py-3 rounded-lg font-semibold text-base transition-all ${
                 mode === 'normal'
-                  ? 'bg-blue-600 text-white shadow-md'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -416,9 +396,9 @@ function DealerRefill({ showToast }) {
             </button>
             <button
               onClick={() => setMode('exchange')}
-              className={`py-4 rounded-xl font-bold text-lg transition-all ${
+              className={`py-3 rounded-lg font-semibold text-base transition-all ${
                 mode === 'exchange'
-                  ? 'bg-blue-600 text-white shadow-md'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -427,18 +407,18 @@ function DealerRefill({ showToast }) {
           </div>
 
           {/* Info Box */}
-          <div className={`p-5 rounded-xl mb-6 text-base ${
+          <div className={`p-4 rounded-lg mb-6 text-sm ${
             mode === 'normal' ? 'bg-green-50 border border-green-200' : 'bg-purple-50 border border-purple-200'
           }`}>
             {mode === 'normal' ? (
               <>
-                <p className="font-bold mb-2 text-lg">{t('normalRefillInfo', language)}</p>
+                <p className="font-semibold mb-2">{t('normalRefillInfo', language)}</p>
                 <p className="text-gray-700">• <span className="text-green-600 font-bold">{t('give', language)}</span> → {t('normalGiveDesc', language)}</p>
                 <p className="text-gray-700">• <span className="text-red-600 font-bold">{t('take', language)}</span> → {t('normalTakeDesc', language)}</p>
               </>
             ) : (
               <>
-                <p className="font-bold mb-2 text-lg">{t('exchangeRefillInfo', language)}</p>
+                <p className="font-semibold mb-2">{t('exchangeRefillInfo', language)}</p>
                 <p className="text-gray-700">• <span className="text-green-600 font-bold">{t('give', language)}</span> → {t('exchangeGiveDesc', language)}</p>
                 <p className="text-gray-700">• <span className="text-red-600 font-bold">{t('take', language)}</span> → {t('exchangeTakeDesc', language)}</p>
               </>
@@ -447,15 +427,16 @@ function DealerRefill({ showToast }) {
 
           {/* Date Input */}
           <div className="mb-6">
-            <label className="block text-base font-semibold text-gray-800 mb-2 flex items-center gap-2">
-              <IconCalendar className="w-5 h-5" />
+            <label htmlFor="dr-date" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <IconCalendar className="w-4 h-4" />
               {t('date', language)}
             </label>
             <input
+              id="dr-date"
               type="date"
               value={refillDate}
               onChange={(e) => setRefillDate(e.target.value)}
-              className="w-full p-4 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all font-medium"
+              className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
             />
           </div>
 
@@ -464,34 +445,36 @@ function DealerRefill({ showToast }) {
             <div key={i} className="bg-gray-50 rounded-xl p-5 mb-5 border border-gray-100">
               <div className="flex items-center gap-3 mb-4">
                 {brand.icon}
-                <span className="font-black text-gray-800 text-xl">{brand.label}</span>
+                <span className="font-semibold text-gray-900 text-base">{brand.label}</span>
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="text-base font-bold text-green-700 mb-2 block flex items-center gap-1 uppercase">
-                    <IconFilledCylinder className="w-5 h-5" />
+                  <label htmlFor={`dr-${brand.key}-give`} className="text-sm font-semibold text-green-700 mb-2 block flex items-center gap-1 uppercase">
+                    <IconFilledCylinder className="w-4 h-4" />
                     {t('give', language)}
                   </label>
                   <input
+                    id={`dr-${brand.key}-give`}
                     type="text"
                     inputMode="numeric"
                     value={formatValue(brand.give)}
                     onChange={(e) => handleNumberChange(brand.setGive, e.target.value)}
-                    className="w-full p-4 text-center text-2xl font-black border-2 border-green-200 rounded-2xl focus:border-green-500 focus:outline-none transition-all shadow-sm"
+                    className="w-full p-3 text-center text-xl font-bold border border-green-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none transition-all"
                     placeholder="०"
                   />
                 </div>
                 <div>
-                  <label className="text-base font-bold text-red-700 mb-2 block flex items-center gap-1 uppercase">
-                    <IconEmptyCylinder className="w-5 h-5" />
+                  <label htmlFor={`dr-${brand.key}-take`} className="text-sm font-semibold text-red-700 mb-2 block flex items-center gap-1 uppercase">
+                    <IconEmptyCylinder className="w-4 h-4" />
                     {t('take', language)}
                   </label>
                   <input
+                    id={`dr-${brand.key}-take`}
                     type="text"
                     inputMode="numeric"
                     value={formatValue(brand.take)}
                     onChange={(e) => handleNumberChange(brand.setTake, e.target.value)}
-                    className="w-full p-4 text-center text-2xl font-black border-2 border-red-200 rounded-2xl focus:border-red-500 focus:outline-none transition-all shadow-sm"
+                    className="w-full p-3 text-center text-xl font-bold border border-red-200 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none transition-all"
                     placeholder="०"
                   />
                 </div>
@@ -501,36 +484,30 @@ function DealerRefill({ showToast }) {
 
           {/* Notes */}
           <div className="mb-6">
-            <label className="block text-base font-semibold text-gray-800 mb-2">
-              {t('notes', language)}
+            <label htmlFor="dr-notes" className="block text-sm font-semibold text-gray-700 mb-2">
+              {t('notes', language)} <span className="text-xs font-normal text-gray-500">({t('optional', language)})</span>
             </label>
             <textarea
+              id="dr-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows="1"
               placeholder={''}
-              className="w-full p-4 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none transition-all resize-none font-medium"
+              className="w-full px-3 py-2.5 text-base border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none"
             />
           </div>
 
           {/* Submit Button */}
-          <button
+          <Button
             onClick={saveRefill}
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-2xl font-bold text-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+            loading={loading}
+            icon={IconPlus}
+            size="lg"
+            fullWidth
           >
-            {loading ? (
-              <>
-                <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
-                {t('saving', language)}...
-              </>
-            ) : (
-              <>
-                <IconPlus className="w-6 h-6" />
-                {t('saveRefill', language)}
-              </>
-            )}
-          </button>
+            {loading ? `${t('saving', language)}...` : t('saveRefill', language)}
+          </Button>
         </div>
       </div>
     </div>

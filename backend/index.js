@@ -17,6 +17,7 @@ const refillRoutes = require('./routes/refillRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const pushroutes=require('./routes/pushRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -121,6 +122,7 @@ app.use('/api/refills', refillRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/push', pushroutes);
+app.use('/api/settings', settingsRoutes);
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });

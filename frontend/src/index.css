@@ -7,114 +7,54 @@
   html {
     scroll-behavior: smooth;
   }
-  
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  
+
   ::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 10px;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 10px;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
   }
 }
 
-@layer components {
-  /* Card hover effects */
-  .card-hover {
-    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
-  }
-  
-  /* Input focus styles */
-  .input-focus {
-    @apply focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none;
-  }
-  
-  /* Button active scale */
-  .btn-active {
-    @apply active:scale-95 transition-transform duration-150;
-  }
-}
-
+/* Fade-in used by every modal overlay (single definition, matches previous behavior) */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
 
-@keyframes bounceIn {
-  0% {
-    transform: translateX(-50%) translateY(100px);
-    opacity: 0;
-  }
-  60% {
-    transform: translateX(-50%) translateY(-5px);
-  }
-  100% {
-    transform: translateX(-50%) translateY(0);
-    opacity: 1;
-  }
+/* Shake animation for error fields (used by Exchange form validation) */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
 
-.animate-bounce-in {
-  animation: bounceIn 0.3s ease-out;
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
 }
 
-/* Additional styles for better visibility */
-.btn-primary {
-  @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg;
-}
-
-.btn-secondary {
-  @apply bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-xl transition-all duration-200;
-}
-
-.btn-danger {
-  @apply bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200;
-}
-
-/* Card hover effect */
-.card-interactive {
-  @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer;
-}
-
-/* Status badges */
-.badge-success {
-  @apply bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold;
-}
-
-.badge-warning {
-  @apply bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-semibold;
-}
-
-.badge-danger {
-  @apply bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-semibold;
-}
-
-.badge-info {
-  @apply bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold;
-}
-
-/* Smooth scrolling for all scrollable containers */
+/* Horizontal scroll containers (tables) */
 .overflow-x-auto {
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
@@ -136,42 +76,4 @@
 
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.animate-slide-down {
-  animation: slideDown 0.3s ease-out;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.2s ease-out;
-}
-/* Shake Animation for Error Fields */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-  20%, 40%, 60%, 80% { transform: translateX(5px); }
-}
-
-.animate-shake {
-  animation: shake 0.5s ease-in-out;
 }

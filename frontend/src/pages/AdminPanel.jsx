@@ -19,12 +19,17 @@ import { t } from '../utils/translations';
 import EditUserModal from '../components/admin/EditUserModal';
 import EditCustomerModal from '../components/admin/EditCustomerModal';
 import EditStockModal from '../components/admin/EditStockModal';
+import DeleteCustomerModal from '../components/admin/DeleteCustomerModal';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 function AdminPanel({ showToast, user }) {
   const { language } = useLanguage();
   const [activeTab, setActiveTab] = useState('users');
+  // Phase 6.1: default gas price setting (admin-only).
+  const [priceInput, setPriceInput] = useState('');
+  const [priceError, setPriceError] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
   
   // Users state
   const [users, setUsers] = useState([]);
@@ -42,6 +47,8 @@ function AdminPanel({ showToast, user }) {
   const [customersLoading, setCustomersLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showCustomerEditModal, setShowCustomerEditModal] = useState(false);
+  // Phase 6.1: delete confirmation modal (checks history/queue before asking)
+  const [customerToDelete, setCustomerToDelete] = useState(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerFormData, setCustomerFormData] = useState({ name: '', phone: '', address: '', remarks: '' });
   
@@ -244,6 +251,10 @@ function AdminPanel({ showToast, user }) {
     setCustomersLoading(false);
   }, [showToast, language]);
 
+  // Phase 6.1: admin customer delete runs inside DeleteCustomerModal, which
+  // shows the customer's history/queue status first and only offers Delete
+  // for history-free customers (server re-checks on DELETE regardless).
+
   // eslint-disable-next-line no-unused-vars
   const updateCustomer = async () => {
     if (!selectedCustomer) return;
@@ -347,6 +358,60 @@ function AdminPanel({ showToast, user }) {
     }
   }, [isAdmin, activeTab, loadUsers, loadStats, loadCustomers, loadStock]);
 
+  // Phase 6.1: settings are loaded from the tab's click handler (not an
+  // effect) so the request runs outside the set-state-in-effect rules and
+  // always reflects the latest saved value when the tab is re-opened.
+  const openSettingsTab = () => {
+    setActiveTab('settings');
+    loadSettings();
+  };
+
+  const loadSettings = async () => {
+    setPriceError('');
+    try {
+      const res = await fetch(`${API_URL}/settings`, { credentials: 'include' });
+      const data = await res.json();
+      if (data.success && typeof data.settings?.defaultPrice === 'number') {
+        setPriceInput(String(data.settings.defaultPrice));
+      } else {
+        setPriceError(data.message || t('error', language));
+      }
+    } catch {
+      setPriceError(t('networkError', language));
+    }
+  };
+
+  const saveSettings = async () => {
+    // Frontend validation mirrors the backend rule: positive whole rupees.
+    const raw = priceInput.trim();
+    const value = Number(raw);
+    if (raw === '' || !Number.isInteger(value) || value <= 0) {
+      setPriceError(t('invalidAmount', language));
+      return;
+    }
+    setPriceError('');
+    setSavingSettings(true);
+    try {
+      const res = await fetch(`${API_URL}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defaultPrice: value }),
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setPriceError(data.message || t('error', language));
+        return;
+      }
+      setPriceInput(String(data.settings.defaultPrice));
+      if (showToast) showToast(t('settingsSaved', language), 'success');
+    } catch {
+      setPriceError(t('networkError', language));
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   // ✅ Conditional return AFTER hooks
   if (!isAdmin) {
     return (
@@ -407,6 +472,17 @@ function AdminPanel({ showToast, user }) {
         >
           <IconPackage className="w-5 h-5" />
           {t('stock', language)}
+        </button>
+        <button
+          onClick={openSettingsTab}
+          className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 ${
+            activeTab === 'settings' 
+              ? 'bg-blue-600 text-white shadow-md' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          <IconSettings className="w-5 h-5" />
+          {t('settings', language)}
         </button>
       </div>
 
@@ -567,6 +643,13 @@ function AdminPanel({ showToast, user }) {
                             }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition">
                               <IconEdit className="w-4 h-4" />
                             </button>
+                            <button
+                              onClick={() => setCustomerToDelete(c)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                              title={t('delete', language)}
+                            >
+                              <IconTrash className="w-4 h-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -630,6 +713,48 @@ function AdminPanel({ showToast, user }) {
             </div>
             <button onClick={loadStock} className="w-full mt-5 bg-gray-100 hover:bg-gray-200 py-3 rounded-xl font-medium transition flex items-center justify-center gap-2">
               <IconRefresh className="w-5 h-5" /> {t('refresh', language)}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 6.1: Settings tab — configurable default gas price */}
+      {activeTab === 'settings' && (
+        <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4">
+            <div>
+              <h2 className="text-xl font-bold text-white">{t('settings', language)}</h2>
+              <p className="text-blue-100 text-sm mt-0.5">{t('settingsDesc', language)}</p>
+            </div>
+          </div>
+
+          <div className="p-6 max-w-md">
+            <label className="block text-sm font-semibold text-gray-600 mb-1.5">
+              {t('defaultPriceLabel', language)}
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              inputMode="numeric"
+              value={priceInput}
+              onChange={(e) => {
+                setPriceInput(e.target.value);
+                setPriceError('');
+              }}
+              placeholder="0"
+              className="w-full px-3 py-2.5 text-lg font-bold border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none transition-colors"
+            />
+            <p className="text-xs text-gray-400 mt-1.5">{t('defaultPriceHint', language)}</p>
+            {priceError && <p className="text-sm text-red-500 mt-2">{priceError}</p>}
+
+            <button
+              onClick={saveSettings}
+              disabled={savingSettings}
+              className="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition flex items-center gap-2 disabled:opacity-50"
+            >
+              <IconSettings className="w-5 h-5" />
+              {savingSettings ? t('saving', language) : t('save', language)}
             </button>
           </div>
         </div>
@@ -701,6 +826,16 @@ function AdminPanel({ showToast, user }) {
           onSuccess={() => {
             loadCustomers();
           }}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Phase 6.1: delete confirmation — shows history/queue status first */}
+      {customerToDelete && (
+        <DeleteCustomerModal
+          customer={customerToDelete}
+          onClose={() => setCustomerToDelete(null)}
+          onDeleted={loadCustomers}
           showToast={showToast}
         />
       )}

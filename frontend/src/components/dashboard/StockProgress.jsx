@@ -126,7 +126,7 @@ export function StockProgress({ stock }) {
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4">
             <div className="flex justify-between items-center mb-2">
               <span className="text-base font-semibold text-gray-700">
-                📊 {t('totalStock', language)}
+                {t('totalStock', language)}
               </span>
               <span className="text-xl font-bold text-gray-900">{grandTotal}</span>
             </div>
